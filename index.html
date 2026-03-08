@@ -460,10 +460,9 @@ select.fi2{appearance:none}
 
   <!-- HISTORY VIEW -->
   <div class="view" id="vHistory">
-    <div class="toolbar" style="flex-wrap:wrap;gap:6px">
-      <input type="text" class="search-bar" id="histSearch" placeholder="🔍 Produkt suchen…" oninput="renderHistory()" style="flex:1;min-width:120px">
-      <select class="search-bar" id="histFilter" onchange="renderHistory()" style="max-width:140px">
-        <option value="">Alle Typen</option>
+    <div class="toolbar">
+      <select class="search-bar" id="histFilter" onchange="renderHistory()" style="width:100%">
+        <option value="">📋 Alle Einträge</option>
         <option value="p">➕ Eingang</option>
         <option value="m">➖ Ausgang</option>
         <option value="inv">🔢 Inventur</option>
@@ -759,10 +758,8 @@ function renderList() {
 }
 
 function renderHistory() {
-  const q      = (document.getElementById('histSearch')?.value||'').toLowerCase();
   const filter = document.getElementById('histFilter')?.value||'';
   let arr = Object.values(history).sort((a,b)=>new Date(b.ts)-new Date(a.ts));
-  if (q)      arr = arr.filter(h=>(h.pn||'').toLowerCase().includes(q)||(h.user||'').toLowerCase().includes(q));
   if (filter) arr = arr.filter(h=>h.dir===filter);
   arr = arr.slice(0,100);
   document.getElementById('histCt').textContent = arr.length;
@@ -1623,7 +1620,10 @@ window.renderDashboard = function() {
         <span style="font-size:22px">${catIcons[p.kategorie]||'📦'}</span>
         <div style="flex:1"><div style="font-weight:600;font-size:14px">${p.name}</div>
         <div style="font-size:12px;color:var(--muted)">Bestand: ${p.kaesten} Kst · Minimum: ${p.minBestand} Kst</div></div>
-        <button class="btn btn-surface btn-sm" onclick="goToProduct('${p.name}')">📦 Lager</button>
+        <div style="display:flex;flex-direction:column;gap:5px;flex-shrink:0">
+          <button class="btn btn-surface btn-sm" style="font-size:11px;padding:5px 8px" onclick="goToProduct('${p.id}')">📦 Lager</button>
+          <button class="btn btn-sm" style="font-size:11px;padding:5px 8px;background:#fff3cd;color:#856404;border:1px solid #ffe69c" onclick="alarmToBestellung('${p.id}')">🛒 Bestellen</button>
+        </div>
       </div>`).join('')
     : '<div class="empty"><div class="ei">✅</div><p>Alles im grünen Bereich!</p></div>';
 
@@ -1645,18 +1645,38 @@ window.renderDashboard = function() {
 };
 
 // ── DASHBOARD NAV ─────────────────────────────────────────────────────────────
-window.goToProduct = function(name) {
+window.goToProduct = function(id) {
+  const p = products[id];
+  if (!p) return;
   switchView('Lager');
-  // Suche befüllen und filtern
   const searchEl = document.getElementById('searchIn');
-  searchEl.value = name;
+  searchEl.value = p.name;
   renderList();
-  // Produkt direkt selektieren wenn eindeutig
-  const match = Object.entries(products).find(([,p])=>p.name===name);
-  if (match) {
-    setTimeout(() => selProd(match[0]), 200);
-  }
-  toast('📦 ' + name + ' im Lager', 'i');
+  setTimeout(() => selProd(id), 200);
+  toast('📦 ' + p.name + ' im Lager', 'i');
+};
+
+window.alarmToBestellung = function(id) {
+  const p = products[id];
+  if (!p) return;
+  // Fehlende Kästen berechnen als Vorschlag
+  const fehlend = Math.max(1, (p.minBestand||0) - (p.kaesten||0));
+  // Bestellliste öffnen mit vorausgefülltem Modal
+  switchView('Bestellung');
+  // Dropdown befüllen
+  const sel = document.getElementById('bestProd');
+  sel.innerHTML = '<option value="">-- Produkt wählen --</option>' +
+    Object.entries(products).sort((a,b)=>a[1].name.localeCompare(b[1].name))
+      .map(([pid,pr])=>`<option value="${pid}"${pid===id?' selected':''}>${pr.name}</option>`).join('');
+  document.getElementById('bestK').value    = fehlend;
+  document.getElementById('bestF').value    = 0;
+  document.getElementById('bestNote').value = '⚠️ Mindestbestand unterschritten';
+  document.getElementById('bestFreitext').value = '';
+  // Modal-Titel anpassen
+  document.querySelector('#bestModal h2').textContent = '🛒 Nachbestellen';
+  document.querySelector('#bestModal .btn-accent').onclick = saveBestPos;
+  document.getElementById('bestModal').classList.add('open');
+  toast('🛒 ' + p.name + ' zur Bestellung vorgeschlagen', 'i');
 };
 function checkAlarms() {
   const alarmed = Object.values(products).filter(p=>p.kaesten<(p.minBestand||0));
