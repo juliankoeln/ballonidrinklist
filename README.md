@@ -2,7 +2,7 @@
   <img src="assets/logo.png" alt="BALLONI GmbH Logo" width="320">
 </p>
 
-<h1 align="center">🍺 Balloni – Getränkelager Manager</h1>
+<h1 align="center">🍺 Balloni Getränkeliste – Getränkelager Manager</h1>
 
 <p align="center">
   Die smarte Getränkeliste für Bars, Vereine und Events.
@@ -19,7 +19,7 @@
 
 # 🍺 Balloni
 
-**Balloni** ist eine einfache und schnelle Web-App zur Verwaltung von Getränkelagern.
+**Balloni Getränkeliste** ist eine einfache und schnelle Web-App zur Verwaltung von Getränkelagern.
 
 Mit Balloni kannst du:
 
