@@ -36,7 +36,7 @@
 </script>
 
 <!-- Barcode scanner (Quagga2 - besser auf iPhone/Android) -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2@1.2.6/dist/quagga.min.js"></script>
 
 <style>
@@ -1468,34 +1468,39 @@ window.exportBestellung = function() {
   rows.push(['']);
   rows.push(['Erstellt mit Balloni Getränkeliste']);
 
-  const wb  = XLSX.utils.book_new();
-  const ws  = XLSX.utils.aoa_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(rows);
   ws['!cols'] = [35, 10, 10, 25].map(w=>({wch:w}));
   ws['!merges'] = [{s:{r:0,c:0},e:{r:0,c:3}},{s:{r:1,c:0},e:{r:1,c:3}},{s:{r:2,c:0},e:{r:2,c:3}}];
 
-  // Rahmen-Funktion
-  const border = { style:'thin', color:{ rgb:'BBBBBB' } };
-  const fullBorder = { top:border, bottom:border, left:border, right:border };
-  const headerFill = { fgColor:{ rgb:'EEEEEE' }, patternType:'solid' };
-  const headerFont = { bold:true };
+  // Styles
+  const thinBorder = { style:'thin', color:{ rgb:'BBBBBB' } };
+  const fullBorder = { top:thinBorder, bottom:thinBorder, left:thinBorder, right:thinBorder };
+  const headerRowIdx = 6; // 0-based: row 7 in Excel = "Produkt/Kästen/..."
 
-  // Alle Zellen mit Rahmen versehen ab Zeile 6 (Index 5 = Spaltenheader + Daten)
-  const dataStartRow = 6; // 0-indexed row 6 = "Produkt/Kästen..." header
-  const totalRows = rows.length;
+  const totalDataRows = rows.length;
   const cols = ['A','B','C','D'];
 
-  for (let r = dataStartRow - 1; r < totalRows; r++) {
+  for (let r = headerRowIdx; r < totalDataRows; r++) {
     for (const col of cols) {
-      const cellRef = col + (r + 1);
-      if (!ws[cellRef]) ws[cellRef] = { v:'', t:'s' };
-      ws[cellRef].s = {
+      const ref = col + (r + 1);
+      if (!ws[ref]) ws[ref] = { v:'', t:'s' };
+      const isHeader = r === headerRowIdx;
+      ws[ref].s = {
         border: fullBorder,
-        fill: r === dataStartRow - 1 ? headerFill : undefined,
-        font: r === dataStartRow - 1 ? headerFont : undefined,
-        alignment: { vertical:'center' }
+        fill: isHeader ? { fgColor:{ rgb:'DDDDDD' }, patternType:'solid' } : { fgColor:{ rgb:'FFFFFF' }, patternType:'solid' },
+        font: isHeader ? { bold:true, sz:11 } : { sz:11 },
+        alignment: { vertical:'center', wrapText: true }
       };
     }
   }
+
+  // Firmen-Header Zeilen fett
+  ['A1','A2','A3'].forEach(ref => {
+    if (ws[ref]) ws[ref].s = { font:{ bold:true, sz:11 } };
+  });
+  // Titel fett+größer
+  if (ws['A5']) ws['A5'].s = { font:{ bold:true, sz:13 } };
 
   XLSX.utils.book_append_sheet(wb, ws, 'Bestellung');
   XLSX.writeFile(wb, `Bestellung_${ds.replace(/\./g,'-')}.xlsx`);
