@@ -790,10 +790,12 @@ function renderHistory() {
     </div>`;
   }).join('');
 
-  // Event delegation – Löschen
+  // Event delegation direkt auf el – stopPropagation damit globaler listener nicht feuert
   el.onclick = async function(e) {
     const btn = e.target.closest('[data-histkey]');
     if (!btn) return;
+    e.stopPropagation();
+    e.preventDefault();
     const key = btn.dataset.histkey;
     if (!confirm('Diesen Verlaufseintrag wirklich löschen?')) return;
     if (connected) {
@@ -896,7 +898,7 @@ document.addEventListener('click', e => {
   // Login-Screen aktiv → nichts tun
   if (!document.getElementById('loginScreen').classList.contains('hidden')) return;
   // Klick auf interaktives Element → nichts tun
-  if (e.target.closest('button, a, input, textarea, select, label, .overlay, #loginScreen, .bnav, .fab')) return;
+  if (e.target.closest('button, a, input, textarea, select, label, .overlay, #loginScreen, .bnav, .fab, [data-histkey], [data-action]')) return;
   // Nur im Lager-Tab Fokus setzen
   const activView = document.querySelector('.view.active');
   if (!activView || activView.id !== 'vLager') return;
@@ -1448,6 +1450,10 @@ window.exportBestellung = function() {
     ts: new Date().toISOString(),
     user: currentUser?.kuerzel || '?'
   });
+
+  // Bestellung nach Export leeren
+  bestellung = [];
+  renderBestellung();
 };
 
 // ── BENUTZER & AUTH ───────────────────────────────────────────────────────────
