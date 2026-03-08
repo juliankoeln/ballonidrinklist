@@ -79,6 +79,7 @@
 [data-theme="dark"] .dash-bar { background:var(--text); }
 [data-theme="dark"] #foundCard { background:var(--card); border-color:var(--border); }
 [data-theme="dark"] .scan-strip { background:var(--surface); border-color:var(--border); }
+[data-theme="dark"] .scan-row { background:var(--surface); }
 [data-theme="dark"] .scan-in { background:var(--bg); border-color:var(--border); color:var(--text); }
 [data-theme="dark"] .badge { background:var(--border); color:var(--muted); }
 [data-theme="dark"] .sec-title { color:var(--muted); }
@@ -113,8 +114,8 @@ header{background:#fff;border-bottom:2px solid #1a1a1a;padding:8px 14px;flex-shr
 
 /* SCANNER STRIP */
 #scanStrip{background:#fff;border-bottom:1px solid var(--border);padding:8px 12px;flex-shrink:0;overflow-y:auto;max-height:52vh}
-.scan-row{display:flex;gap:6px;margin-bottom:8px}
-.scan-in{flex:1;background:var(--bg);border:2px solid var(--border);border-radius:var(--r);padding:10px 12px;color:var(--text);font-size:15px;font-family:'DM Sans',sans-serif;outline:none;transition:border-color .2s}
+.scan-row{display:flex;gap:6px;margin-bottom:8px;background:var(--bg);padding:8px;border-radius:var(--r)}
+.scan-in{flex:1;background:var(--surface);border:2px solid var(--border);border-radius:var(--r);padding:10px 12px;color:var(--text);font-size:15px;font-family:'DM Sans',sans-serif;outline:none;transition:border-color .2s}
 .scan-in:focus{border-color:#1a1a1a}
 .btn{border:none;border-radius:var(--r);padding:10px 14px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap}
 .btn:active{transform:scale(.95)}
@@ -758,33 +759,51 @@ function renderList() {
 }
 
 function renderHistory() {
-  const filter = document.getElementById('histFilter')?.value||'';
-  let arr = Object.values(history).sort((a,b)=>new Date(b.ts)-new Date(a.ts));
-  if (filter) arr = arr.filter(h=>h.dir===filter);
+  const filter  = document.getElementById('histFilter')?.value||'';
+  const isAdmin = currentUser?.role === 'admin';
+  let arr = Object.entries(history).sort((a,b)=>new Date(b[1].ts)-new Date(a[1].ts));
+  if (filter) arr = arr.filter(([,h])=>h.dir===filter);
   arr = arr.slice(0,100);
   document.getElementById('histCt').textContent = arr.length;
   const el = document.getElementById('histList');
   if (!arr.length) { el.innerHTML = `<div class="empty"><div class="ei">📋</div><p>Keine Einträge gefunden.</p></div>`; return; }
-  const icons = {p:'➕',m:'➖',inv:'🔢',best:'🛒',edit:'✏️',del:'🗑️'};
+  const icons  = {p:'➕',m:'➖',inv:'🔢',best:'🛒',edit:'✏️',del:'🗑️'};
   const labels = {p:'Eingang',m:'Ausgang',inv:'Inventur',best:'Bestellung',edit:'Bearbeitet',del:'Gelöscht'};
-  el.innerHTML = arr.map(h => {
+  el.innerHTML = arr.map(([key,h]) => {
     const d = new Date(h.ts);
     const ds = d.toLocaleDateString('de-DE')+' '+d.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
     const parts=[];
     if(h.dK) parts.push(`${h.dK>0?'+':''}${h.dK} Kst`);
     if(h.dF) parts.push(`${h.dF>0?'+':''}${h.dF} Fl`);
-    const dir = h.dir||'m';
+    const dir      = h.dir||'m';
     const dirClass = ['p','m','best'].includes(dir)?dir:'m';
-    const icon = icons[dir]||'📋';
-    const label = labels[dir]||dir;
+    const icon     = icons[dir]||'📋';
+    const label    = labels[dir]||dir;
     const userBadge = h.user?`<span style="background:#1a1a1a;color:#fff;border-radius:10px;padding:1px 7px;font-size:10px;font-weight:700;letter-spacing:1px;margin-left:4px">${h.user}</span>`:'';
-    const subInfo = ['best','edit','del'].includes(dir)?'':` · ${h.nK??'–'} Kst, ${h.nF??'–'} Fl`;
-    return `<div class="hitem">
+    const subInfo  = ['best','edit','del'].includes(dir)?'':` · ${h.nK??'–'} Kst, ${h.nF??'–'} Fl`;
+    const delBtn   = isAdmin ? `<button data-histkey="${key}" style="background:none;border:none;color:#ccc;font-size:16px;cursor:pointer;padding:4px 6px;flex-shrink:0" title="Eintrag löschen">🗑️</button>` : '';
+    return `<div class="hitem" style="align-items:center">
       <div class="hbadge ${dirClass}">${icon}</div>
-      <div class="hdet"><div class="hn">${h.pn} ${userBadge}</div><div class="hm">${ds}${subInfo}</div></div>
-      <div class="hch ${dirClass}">${parts.length?parts.join(', '):label}</div>
+      <div class="hdet" style="flex:1"><div class="hn">${h.pn} ${userBadge}</div><div class="hm">${ds}${subInfo}</div></div>
+      <div class="hch ${dirClass}" style="margin-right:4px">${parts.length?parts.join(', '):label}</div>
+      ${delBtn}
     </div>`;
   }).join('');
+
+  // Event delegation – Löschen
+  el.onclick = async function(e) {
+    const btn = e.target.closest('[data-histkey]');
+    if (!btn) return;
+    const key = btn.dataset.histkey;
+    if (!confirm('Diesen Verlaufseintrag wirklich löschen?')) return;
+    if (connected) {
+      await remove(ref(db, `history/${key}`));
+    } else {
+      delete history[key];
+      localStorage.setItem('lager_h', JSON.stringify(history));
+      renderHistory();
+    }
+  };
 }
 
 window.renderArtikel = function() {
