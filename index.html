@@ -67,6 +67,38 @@
 [data-theme="dark"] .nbtn { color:var(--muted); }
 [data-theme="dark"] .nbtn.active { color:var(--text); }
 [data-theme="dark"] select option { background:var(--surface); }
+[data-theme="dark"] .pcard { background:var(--card); border-color:var(--border); }
+[data-theme="dark"] .acard { background:var(--card); border-color:var(--border); }
+[data-theme="dark"] .hitem { background:var(--card); border-color:var(--border); }
+[data-theme="dark"] .inv-card { background:var(--card); border-color:var(--border); }
+[data-theme="dark"] .best-pos { background:var(--card); border-color:var(--border); }
+[data-theme="dark"] .dash-card { background:var(--card); border-color:var(--border); }
+[data-theme="dark"] .dash-alarm { background:var(--card); }
+[data-theme="dark"] .dash-top-item { background:var(--card); border-color:var(--border); }
+[data-theme="dark"] .dash-bar-wrap { background:var(--border); }
+[data-theme="dark"] .dash-bar { background:var(--text); }
+[data-theme="dark"] #foundCard { background:var(--card); border-color:var(--border); }
+[data-theme="dark"] .scan-strip { background:var(--surface); border-color:var(--border); }
+[data-theme="dark"] .scan-in { background:var(--bg); border-color:var(--border); color:var(--text); }
+[data-theme="dark"] .badge { background:var(--border); color:var(--muted); }
+[data-theme="dark"] .sec-title { color:var(--muted); }
+[data-theme="dark"] .fab { background:var(--text); color:var(--bg); }
+[data-theme="dark"] .toast { background:var(--surface); border-color:var(--border); color:var(--text); }
+[data-theme="dark"] .btn-surface { background:var(--border); color:var(--text); border-color:var(--border); }
+[data-theme="dark"] .overlay { background:rgba(0,0,0,.7); }
+[data-theme="dark"] #setupBanner { background:#2a1f0e; border-color:#5a3e1b; color:#f0c070; }
+[data-theme="dark"] .pname,.acard-name { color:var(--text); }
+[data-theme="dark"] .slow { background:#3a1a1a; color:var(--red); }
+[data-theme="dark"] #pinDots { background:var(--bg); border-color:var(--border); }
+[data-theme="dark"] .inv-save { background:var(--text); color:var(--bg); }
+[data-theme="dark"] .login-btn { background:var(--text); color:var(--bg); }
+[data-theme="dark"] .best-del { background:var(--border); color:var(--text); }
+[data-theme="dark"] .hbadge.p { background:#1a3a2a; }
+[data-theme="dark"] .hbadge.m { background:#3a1a1a; }
+[data-theme="dark"] .hbadge.best { background:#3a3010; }
+[data-theme="dark"] .hbadge.edit { background:#1a2a4a; }
+[data-theme="dark"] .hbadge.del { background:#3a1a1a; }
+[data-theme="dark"] .pcard.low { background:#2a1a1a; border-color:#5a2a2a; }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;overflow:hidden}
 body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;display:flex;flex-direction:column}
@@ -140,6 +172,8 @@ main{flex:1;overflow-y:auto;padding:14px 14px 80px;background:var(--bg)}
 .hbadge.p{background:#e6f4ed}
 .hbadge.m{background:#fdecea}
 .hbadge.best{background:#fff3cd}
+.hbadge.edit{background:#e8f0fe}
+.hbadge.del{background:#fdecea}
 .hdet{flex:1}
 .hn{font-size:13px;font-weight:500}
 .hm{font-size:11px;color:var(--muted);margin-top:1px}
@@ -147,6 +181,8 @@ main{flex:1;overflow-y:auto;padding:14px 14px 80px;background:var(--bg)}
 .hch.p{color:var(--green)}
 .hch.m{color:var(--red)}
 .hch.best{color:#856404}
+.hch.edit{color:#3b5bdb}
+.hch.del{color:var(--red)}
 
 /* MODAL */
 .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:300;align-items:flex-end;justify-content:center}
@@ -422,6 +458,18 @@ select.fi2{appearance:none}
 
   <!-- HISTORY VIEW -->
   <div class="view" id="vHistory">
+    <div class="toolbar" style="flex-wrap:wrap;gap:6px">
+      <input type="text" class="search-bar" id="histSearch" placeholder="🔍 Produkt suchen…" oninput="renderHistory()" style="flex:1;min-width:120px">
+      <select class="search-bar" id="histFilter" onchange="renderHistory()" style="max-width:140px">
+        <option value="">Alle Typen</option>
+        <option value="p">➕ Eingang</option>
+        <option value="m">➖ Ausgang</option>
+        <option value="inv">🔢 Inventur</option>
+        <option value="best">🛒 Bestellung</option>
+        <option value="edit">✏️ Bearbeitet</option>
+        <option value="del">🗑️ Gelöscht</option>
+      </select>
+    </div>
     <div class="sec-title">Buchungsverlauf <span class="badge" id="histCt">0</span></div>
     <div id="histList"></div>
   </div>
@@ -709,21 +757,33 @@ function renderList() {
 }
 
 function renderHistory() {
-  const arr = Object.values(history).sort((a,b)=>new Date(b.ts)-new Date(a.ts)).slice(0,80);
+  const q      = (document.getElementById('histSearch')?.value||'').toLowerCase();
+  const filter = document.getElementById('histFilter')?.value||'';
+  let arr = Object.values(history).sort((a,b)=>new Date(b.ts)-new Date(a.ts));
+  if (q)      arr = arr.filter(h=>(h.pn||'').toLowerCase().includes(q)||(h.user||'').toLowerCase().includes(q));
+  if (filter) arr = arr.filter(h=>h.dir===filter);
+  arr = arr.slice(0,100);
   document.getElementById('histCt').textContent = arr.length;
   const el = document.getElementById('histList');
-  if (!arr.length) { el.innerHTML = `<div class="empty"><div class="ei">📋</div><p>Noch keine Buchungen.</p></div>`; return; }
+  if (!arr.length) { el.innerHTML = `<div class="empty"><div class="ei">📋</div><p>Keine Einträge gefunden.</p></div>`; return; }
+  const icons = {p:'➕',m:'➖',inv:'🔢',best:'🛒',edit:'✏️',del:'🗑️'};
+  const labels = {p:'Eingang',m:'Ausgang',inv:'Inventur',best:'Bestellung',edit:'Bearbeitet',del:'Gelöscht'};
   el.innerHTML = arr.map(h => {
     const d = new Date(h.ts);
     const ds = d.toLocaleDateString('de-DE')+' '+d.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
     const parts=[];
     if(h.dK) parts.push(`${h.dK>0?'+':''}${h.dK} Kst`);
     if(h.dF) parts.push(`${h.dF>0?'+':''}${h.dF} Fl`);
-    const dir = h.dir==='p'?'p':h.dir==='best'?'best':'m';
+    const dir = h.dir||'m';
+    const dirClass = ['p','m','best'].includes(dir)?dir:'m';
+    const icon = icons[dir]||'📋';
+    const label = labels[dir]||dir;
+    const userBadge = h.user?`<span style="background:#1a1a1a;color:#fff;border-radius:10px;padding:1px 7px;font-size:10px;font-weight:700;letter-spacing:1px;margin-left:4px">${h.user}</span>`:'';
+    const subInfo = ['best','edit','del'].includes(dir)?'':` · ${h.nK??'–'} Kst, ${h.nF??'–'} Fl`;
     return `<div class="hitem">
-      <div class="hbadge ${dir}">${dir==='p'?'➕':dir==='best'?'🛒':'➖'}</div>
-      <div class="hdet"><div class="hn">${h.pn} ${h.user?'<span style="background:#1a1a1a;color:#fff;border-radius:10px;padding:1px 7px;font-size:10px;font-weight:700;letter-spacing:1px;margin-left:4px">'+h.user+'</span>':''}</div><div class="hm">${ds}${h.dir!=='best'?' · '+h.nK+' Kst, '+h.nF+' Fl':''}</div></div>
-      <div class="hch ${dir}">${dir==='best'?'Bestellung':parts.join(', ')}</div>
+      <div class="hbadge ${dirClass}">${icon}</div>
+      <div class="hdet"><div class="hn">${h.pn} ${userBadge}</div><div class="hm">${ds}${subInfo}</div></div>
+      <div class="hch ${dirClass}">${parts.length?parts.join(', '):label}</div>
     </div>`;
   }).join('');
 }
@@ -806,6 +866,7 @@ window.confirmDelete = async function() {
     currentId = null;
     document.getElementById('foundCard').classList.remove('show');
   }
+  await fbPush('history', { pn: name, dir:'del', nK:0, nF:0, dK:0, dF:0, ts:new Date().toISOString(), user:currentUser?.kuerzel||'?' });
   closeDelModal();
   toast(`🗑️ ${name} gelöscht`, 'e');
 };
@@ -939,8 +1000,13 @@ window.saveProduct = async function() {
   };
   const key = id || Date.now().toString();
   await fbUpdate(`products/${key}`, data);
-  if (!id) toast('✅ Produkt angelegt','s');
-  else toast('✅ Produkt aktualisiert','s');
+  if (!id) {
+    toast('✅ Produkt angelegt','s');
+    await fbPush('history', { pn: data.name, dir:'edit', nK:data.kaesten, nF:data.flaschen, dK:0, dF:0, ts:new Date().toISOString(), user:currentUser?.kuerzel||'?', note:'Neu angelegt' });
+  } else {
+    toast('✅ Produkt aktualisiert','s');
+    await fbPush('history', { pn: data.name, dir:'edit', nK:data.kaesten, nF:data.flaschen, dK:0, dF:0, ts:new Date().toISOString(), user:currentUser?.kuerzel||'?', note:'Bearbeitet' });
+  }
   closeAdd();
 };
 
@@ -1595,7 +1661,7 @@ window.renderDashboard = function() {
         <span style="font-size:22px">${catIcons[p.kategorie]||'📦'}</span>
         <div style="flex:1"><div style="font-weight:600;font-size:14px">${p.name}</div>
         <div style="font-size:12px;color:var(--muted)">Bestand: ${p.kaesten} Kst · Minimum: ${p.minBestand} Kst</div></div>
-        <button class="btn btn-surface btn-sm" onclick="switchView('Bestellung');addBestPos()">🛒</button>
+        <button class="btn btn-surface btn-sm" onclick="goToProduct('${p.name}')">📦 Lager</button>
       </div>`).join('')
     : '<div class="empty"><div class="ei">✅</div><p>Alles im grünen Bereich!</p></div>';
 
@@ -1616,7 +1682,20 @@ window.renderDashboard = function() {
     : '<div class="empty"><div class="ei">📊</div><p>Noch keine Buchungen in den letzten 30 Tagen.</p></div>';
 };
 
-// ── MINDESTBESTAND ALARM bei Buchung ─────────────────────────────────────────
+// ── DASHBOARD NAV ─────────────────────────────────────────────────────────────
+window.goToProduct = function(name) {
+  switchView('Lager');
+  // Suche befüllen und filtern
+  const searchEl = document.getElementById('searchIn');
+  searchEl.value = name;
+  renderList();
+  // Produkt direkt selektieren wenn eindeutig
+  const match = Object.entries(products).find(([,p])=>p.name===name);
+  if (match) {
+    setTimeout(() => selProd(match[0]), 200);
+  }
+  toast('📦 ' + name + ' im Lager', 'i');
+};
 function checkAlarms() {
   const alarmed = Object.values(products).filter(p=>p.kaesten<(p.minBestand||0));
   if (alarmed.length > 0) {
