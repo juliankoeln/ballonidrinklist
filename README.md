@@ -17,11 +17,11 @@
 
 ---
 
-# 🍺 Balloni
+# 🍺 Balloni Getränkeliste
 
 **Balloni Getränkeliste** ist eine einfache und schnelle Web-App zur Verwaltung von Getränkelagern.
 
-Mit Balloni kannst du:
+Mit Balloni Getränkeliste kannst du:
 
 - Barcodes scannen  
 - Kästen und Flaschen buchen  
