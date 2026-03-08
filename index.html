@@ -760,7 +760,7 @@ function renderList() {
 
 function renderHistory() {
   const filter  = document.getElementById('histFilter')?.value||'';
-  const isAdmin = currentUser?.role === 'admin';
+  const isAdmin = currentUser?.role === 'admin' || currentUser?.kuerzel === 'ADM';
   let arr = Object.entries(history).sort((a,b)=>new Date(b[1].ts)-new Date(a[1].ts));
   if (filter) arr = arr.filter(([,h])=>h.dir===filter);
   arr = arr.slice(0,100);
@@ -1498,7 +1498,7 @@ window.loginStep3 = function() {
     document.getElementById('userPin').focus();
     return;
   }
-  currentUser = { kuerzel: k, role: appUsers[k].role };
+  currentUser = { kuerzel: k, role: appUsers[k].role || (k === 'ADM' ? 'admin' : 'user') };
   localStorage.setItem('balloni_session', JSON.stringify(currentUser));
   document.getElementById('loginScreen').classList.add('hidden');
   document.getElementById('userBadge').textContent = k;
@@ -1758,6 +1758,8 @@ const savedSession = localStorage.getItem('balloni_session');
 if (savedSession) {
   try {
     currentUser = JSON.parse(savedSession);
+    // Sicherheits-Fallback: ADM immer Admin
+    if (currentUser.kuerzel === 'ADM') currentUser.role = 'admin';
     document.getElementById('loginScreen').classList.add('hidden');
     document.getElementById('userBadge').textContent = currentUser.kuerzel;
     startApp();
