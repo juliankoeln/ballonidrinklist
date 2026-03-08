@@ -315,16 +315,18 @@ select.fi2{appearance:none}
         <span style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:4px" id="loginUserShow"></span>
         <div style="font-size:11px;color:#888;margin-top:2px">PIN eingeben</div>
       </div>
-      <!-- PIN Eingabe: echtes Feld unsichtbar, Punkte-Anzeige sichtbar -->
-      <input type="text" id="userPin" autocomplete="off" autocorrect="off"
-        autocapitalize="off" spellcheck="false"
-        style="opacity:0;position:absolute;width:0;height:0;pointer-events:none;z-index:-1">
-      <div id="pinDots" onclick="focusPin()"
-        style="display:flex;justify-content:center;align-items:center;gap:10px;
-               min-height:60px;background:var(--bg);border:2px solid var(--border);
-               border-radius:10px;margin-bottom:16px;cursor:text;padding:16px;
-               transition:border-color .2s">
-        <span id="pinPlaceholder" style="color:var(--muted);font-size:14px">Tippe um PIN einzugeben</span>
+      <!-- PIN: echtes Feld liegt über der Punkte-Anzeige, transparent aber klickbar -->
+      <div style="position:relative;margin-bottom:16px">
+        <div id="pinDots"
+          style="display:flex;justify-content:center;align-items:center;gap:10px;
+                 min-height:60px;background:var(--bg);border:2px solid var(--border);
+                 border-radius:10px;padding:16px;pointer-events:none">
+          <span style="color:var(--muted);font-size:14px">PIN eingeben…</span>
+        </div>
+        <input type="text" id="userPin"
+          autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+          style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:text;z-index:10;font-size:16px"
+          oninput="onPinInput()" onkeydown="if(event.key==='Enter')loginStep3()">
       </div>
       <button class="login-btn" onclick="loginStep3()">Anmelden</button>
       <button style="width:100%;background:none;border:none;color:#888;font-size:13px;margin-top:8px;cursor:pointer;font-family:'DM Sans',sans-serif" onclick="backToStep1()">← anderer Benutzer</button>
@@ -1165,6 +1167,7 @@ window.switchView = function(v) {
   if (v==='Inventur') renderInventur();
   if (v==='Bestellung') renderBestellung();
   if (v==='Dashboard') renderDashboard();
+  if (v==='History') renderHistory();
 };
 
 // ── EXCEL EXPORT ──────────────────────────────────────────────────────────────
@@ -1458,6 +1461,7 @@ window.loginStep2 = function() {
   document.getElementById('loginStep2').style.display = 'block';
   document.getElementById('loginUserShow').textContent = k;
   document.getElementById('userPin').value = '';
+  onPinInput();
   setTimeout(() => document.getElementById('userPin').focus(), 150);
 };
 document.getElementById('userKuerzel').addEventListener('keydown', e => { if(e.key==='Enter') loginStep2(); });
@@ -1470,6 +1474,7 @@ window.loginStep3 = function() {
   if (!appUsers[k] || appUsers[k].pin !== pin) {
     showLoginErr('Falsche PIN – bitte nochmal versuchen');
     document.getElementById('userPin').value = '';
+    onPinInput();
     document.getElementById('userPin').focus();
     return;
   }
@@ -1556,61 +1561,18 @@ window.deleteUser = function(k) {
 
 
 // ── PIN MASKING ───────────────────────────────────────────────────────────────
-let pinValue = '';
-
-window.focusPin = function() {
-  // Create a temporary visible input, get value, then hide
-  const tmp = document.createElement('input');
-  tmp.type = 'text';
-  tmp.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);font-size:20px;padding:12px 20px;border:2px solid #1a1a1a;border-radius:10px;z-index:9999;background:#fff;color:#1a1a1a;text-align:center;min-width:200px';
-  tmp.placeholder = 'PIN eingeben, Enter drücken';
-  tmp.value = pinValue;
-  document.body.appendChild(tmp);
-  tmp.focus();
-  tmp.addEventListener('input', () => {
-    pinValue = tmp.value;
-    updatePinDots();
-  });
-  tmp.addEventListener('keydown', e => {
-    if (e.key === 'Enter') { document.body.removeChild(tmp); loginStep3(); }
-    if (e.key === 'Escape') { document.body.removeChild(tmp); }
-  });
-  tmp.addEventListener('blur', () => {
-    setTimeout(() => { if (document.body.contains(tmp)) document.body.removeChild(tmp); }, 200);
-  });
-};
-
-function updatePinDots() {
+window.onPinInput = function() {
+  const val  = document.getElementById('userPin').value;
   const dots = document.getElementById('pinDots');
-  const ph   = document.getElementById('pinPlaceholder');
-  if (!dots) return;
-  if (pinValue.length === 0) {
-    dots.innerHTML = '<span id="pinPlaceholder" style="color:var(--muted);font-size:14px">Tippe um PIN einzugeben</span>';
+  if (val.length === 0) {
+    dots.innerHTML = '<span style="color:var(--muted);font-size:14px">PIN eingeben…</span>';
     dots.style.borderColor = 'var(--border)';
   } else {
-    dots.innerHTML = pinValue.split('').map(() =>
-      '<span style="width:14px;height:14px;background:var(--text);border-radius:50%;display:inline-block;transition:transform .1s;transform:scale(1)"></span>'
+    dots.innerHTML = val.split('').map(() =>
+      '<span style="width:14px;height:14px;background:var(--text);border-radius:50%;display:inline-block"></span>'
     ).join('');
     dots.style.borderColor = 'var(--accent)';
   }
-}
-
-// Override loginStep3 to use pinValue
-const _origStep3 = window.loginStep3;
-window.loginStep3 = function() {
-  // temporarily put pinValue into hidden field
-  document.getElementById('userPin').value = pinValue;
-  _origStep3();
-  pinValue = '';
-  updatePinDots();
-};
-
-// Override backToStep1 to reset pin dots
-const _origBack = window.backToStep1;
-window.backToStep1 = function() {
-  pinValue = '';
-  updatePinDots();
-  _origBack();
 };
 
 // ── DARK MODE ─────────────────────────────────────────────────────────────────
