@@ -461,7 +461,7 @@ select.fi2{appearance:none}
   <!-- HISTORY VIEW -->
   <div class="view" id="vHistory">
     <div class="toolbar">
-      <select class="search-bar" id="histFilter" onchange="renderHistory()" style="width:100%">
+      <select class="search-bar" id="histFilter" style="width:100%">
         <option value="">📋 Alle Einträge</option>
         <option value="p">➕ Eingang</option>
         <option value="m">➖ Ausgang</option>
@@ -874,10 +874,14 @@ window.confirmDelete = async function() {
 const bIn = document.getElementById('bIn');
 bIn.addEventListener('keydown', e => { if(e.key==='Enter') doScan(); });
 document.addEventListener('click', e => {
-  if (document.getElementById('loginScreen') && !document.getElementById('loginScreen').classList.contains('hidden')) return;
-  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
-  if (!e.target.closest('.overlay') && !e.target.closest('#loginScreen'))
-    setTimeout(()=>bIn.focus(),80);
+  // Login-Screen aktiv → nichts tun
+  if (!document.getElementById('loginScreen').classList.contains('hidden')) return;
+  // Klick auf interaktives Element → nichts tun
+  if (e.target.closest('button, a, input, textarea, select, label, .overlay, #loginScreen, .bnav, .fab')) return;
+  // Nur im Lager-Tab Fokus setzen
+  const activView = document.querySelector('.view.active');
+  if (!activView || activView.id !== 'vLager') return;
+  setTimeout(()=>bIn.focus(), 80);
 });
 
 window.doScan = function() {
@@ -1701,6 +1705,9 @@ function startApp() {
       appUsers = getUsers();
     });
   }
+  // History filter
+  document.getElementById('histFilter').addEventListener('change', renderHistory);
+
   initFirebase();
   bIn.focus();
   // Apply saved theme icon
