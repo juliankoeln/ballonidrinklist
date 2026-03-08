@@ -80,6 +80,7 @@
 [data-theme="dark"] #foundCard { background:var(--card); border-color:var(--border); }
 [data-theme="dark"] .scan-strip { background:var(--surface); border-color:var(--border); }
 [data-theme="dark"] .scan-row { background:var(--surface); }
+[data-theme="dark"] #scanStrip { background:var(--surface); }
 [data-theme="dark"] .scan-in { background:var(--bg); border-color:var(--border); color:var(--text); }
 [data-theme="dark"] .badge { background:var(--border); color:var(--muted); }
 [data-theme="dark"] .sec-title { color:var(--muted); }
@@ -113,7 +114,7 @@ header{background:#fff;border-bottom:2px solid #1a1a1a;padding:8px 14px;flex-shr
 .sync-dot.err{background:var(--red)}
 
 /* SCANNER STRIP */
-#scanStrip{background:#fff;border-bottom:1px solid var(--border);padding:8px 12px;flex-shrink:0;overflow-y:auto;max-height:52vh}
+#scanStrip{background:var(--surface);border-bottom:1px solid var(--border);padding:8px 12px;flex-shrink:0;overflow-y:auto;max-height:52vh}
 .scan-row{display:flex;gap:6px;margin-bottom:8px;background:var(--bg);padding:8px;border-radius:var(--r)}
 .scan-in{flex:1;background:var(--surface);border:2px solid var(--border);border-radius:var(--r);padding:10px 12px;color:var(--text);font-size:15px;font-family:'DM Sans',sans-serif;outline:none;transition:border-color .2s}
 .scan-in:focus{border-color:#1a1a1a}
@@ -276,7 +277,7 @@ select.fi2{appearance:none}
 .dash-bar{height:8px;background:#1a1a1a;border-radius:4px;transition:width .4s}
 
 /* INVENTUR */
-.inv-card{background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:12px;margin-bottom:8px;box-shadow:var(--shadow)}
+.inv-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:12px;margin-bottom:8px;box-shadow:var(--shadow)}
 .inv-top{display:flex;align-items:center;gap:10px;margin-bottom:10px}
 .inv-name{font-size:14px;font-weight:600;color:var(--text);flex:1}
 .inv-bar{font-size:10px;color:var(--muted);font-family:monospace}
@@ -284,7 +285,7 @@ select.fi2{appearance:none}
 .inv-field label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px}
 .inv-in{width:100%;background:var(--bg);border:2px solid var(--border);border-radius:8px;padding:10px;font-size:18px;font-weight:600;text-align:center;font-family:'DM Sans',sans-serif;color:var(--text);outline:none}
 .inv-in:focus{border-color:#1a1a1a;background:#fff}
-.inv-save{width:100%;margin-top:10px;background:#1a1a1a;color:#fff;border:none;border-radius:8px;padding:10px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;font-size:14px}
+.inv-save{width:100%;margin-top:10px;background:var(--accent);color:var(--bg);border:none;border-radius:8px;padding:10px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;font-size:14px}
 .inv-save:active{transform:scale(.97)}
 .inv-saved{background:#e6f4ed;color:var(--green);border-color:#b8dfc9}
 
@@ -644,7 +645,7 @@ select.fi2{appearance:none}
       Ehrenfeldgürtel 88–94<br>
       50823 Köln-Ehrenfeld<br><br>
       Tel: +49 (0) 221-510 910<br>
-      info@balloni.de
+      <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="0e676068614e6c6f6262616067206a6b">[email&#160;protected]</a>
     </p>
     <div style="border-top:1px solid var(--border);margin-top:12px;padding-top:12px">
       <p style="font-size:11px;color:var(--muted);line-height:1.7">
@@ -668,7 +669,7 @@ select.fi2{appearance:none}
   </div>
 </div>
 
-<script type="module">
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script type="module">
 // ── DATA ─────────────────────────────────────────────────────────────────────
 let products = {};
 let history  = {};
@@ -1312,8 +1313,12 @@ window.saveInvModal = async function() {
 
 // ── BESTELLUNG ────────────────────────────────────────────────────────────────
 let bestellung = [];
+// Bestellung aus localStorage laden
+try { const _b = localStorage.getItem('balloni_bestellung'); if(_b) bestellung = JSON.parse(_b); } catch(e){}
 
 window.renderBestellung = function() {
+  // Bestellung in localStorage speichern
+  try { localStorage.setItem('balloni_bestellung', JSON.stringify(bestellung)); } catch(e){}
   const el = document.getElementById('bestList');
   const em = document.getElementById('bestEmpty');
   document.getElementById('bestCt').textContent = bestellung.length;
@@ -1459,8 +1464,32 @@ window.exportBestellung = function() {
   const wb  = XLSX.utils.book_new();
   const ws  = XLSX.utils.aoa_to_sheet(rows);
   ws['!cols'] = [35, 10, 10, 25].map(w=>({wch:w}));
-  // Style header rows bold via merges hint
-  ws['!merges'] = [{s:{r:0,c:0},e:{r:0,c:3}},{s:{r:1,c:0},e:{r:1,c:3}},{s:{r:3,c:0},e:{r:3,c:3}}];
+  ws['!merges'] = [{s:{r:0,c:0},e:{r:0,c:3}},{s:{r:1,c:0},e:{r:1,c:3}},{s:{r:2,c:0},e:{r:2,c:3}}];
+
+  // Rahmen-Funktion
+  const border = { style:'thin', color:{ rgb:'BBBBBB' } };
+  const fullBorder = { top:border, bottom:border, left:border, right:border };
+  const headerFill = { fgColor:{ rgb:'EEEEEE' }, patternType:'solid' };
+  const headerFont = { bold:true };
+
+  // Alle Zellen mit Rahmen versehen ab Zeile 6 (Index 5 = Spaltenheader + Daten)
+  const dataStartRow = 6; // 0-indexed row 6 = "Produkt/Kästen..." header
+  const totalRows = rows.length;
+  const cols = ['A','B','C','D'];
+
+  for (let r = dataStartRow - 1; r < totalRows; r++) {
+    for (const col of cols) {
+      const cellRef = col + (r + 1);
+      if (!ws[cellRef]) ws[cellRef] = { v:'', t:'s' };
+      ws[cellRef].s = {
+        border: fullBorder,
+        fill: r === dataStartRow - 1 ? headerFill : undefined,
+        font: r === dataStartRow - 1 ? headerFont : undefined,
+        alignment: { vertical:'center' }
+      };
+    }
+  }
+
   XLSX.utils.book_append_sheet(wb, ws, 'Bestellung');
   XLSX.writeFile(wb, `Bestellung_${ds.replace(/\./g,'-')}.xlsx`);
   toast('📄 Bestellung exportiert', 's');
@@ -1477,6 +1506,7 @@ window.exportBestellung = function() {
 
   // Bestellung nach Export leeren
   bestellung = [];
+  localStorage.removeItem('balloni_bestellung');
   renderBestellung();
 };
 
