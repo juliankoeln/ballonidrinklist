@@ -495,6 +495,10 @@ select.fi2{appearance:none}
   <div class="view" id="vInventur">
     <div class="sec-title">Inventur <span class="badge" id="invCt">0 Artikel</span></div>
     <p style="font-size:12px;color:#888;margin-bottom:12px">Scanne oder wähle ein Produkt und trage den <strong>tatsächlichen Bestand</strong> ein. Der Wert wird direkt überschrieben.</p>
+    <!-- Unsichtbares Feld für Laser-Scanner -->
+    <input type="text" id="invScanIn" inputmode="numeric" autocomplete="off"
+      style="position:absolute;opacity:0;pointer-events:none;width:0;height:0"
+      onkeydown="if(event.key==='Enter')doInvScan()">
     <div id="invList"></div>
   </div>
 
@@ -665,6 +669,9 @@ select.fi2{appearance:none}
         Diese App wurde entwickelt mit Unterstützung von<br>
         <strong style="color:var(--text)">Claude</strong> · KI-Assistent von Anthropic
       </p>
+      <p style="font-size:11px;color:var(--muted);margin-top:10px;letter-spacing:1px">
+        Version 0.32
+      </p>
     </div>
     <button class="btn btn-surface" style="width:100%;margin-top:16px" onclick="document.getElementById('impressumModal').classList.remove('open')">Schließen</button>
   </div>
@@ -833,6 +840,51 @@ function renderHistory() {
   // Kein el.onclick mehr nötig – deleteHistEntry ist global
 }
 
+window.showDashPopup = function(type) {
+  const prods = Object.values(products);
+  let title = '', items = [];
+
+  if (type === 'alle') {
+    title = '📦 Alle Artikel';
+    items = prods.sort((a,b)=>a.name.localeCompare(b.name))
+      .map(p=>`<div class="dash-top-item">
+        <span style="font-size:18px">${catIcons[p.kategorie]||'📦'}</span>
+        <div style="flex:1;font-size:13px;font-weight:600">${p.name}</div>
+        <div style="font-size:12px;color:var(--muted)">${p.kaesten} Kst · ${p.flaschen} Fl</div>
+      </div>`);
+  } else if (type === 'kaesten') {
+    title = '📦 Kästen nach Bestand';
+    items = prods.filter(p=>p.kaesten>0).sort((a,b)=>b.kaesten-a.kaesten)
+      .map(p=>`<div class="dash-top-item">
+        <span style="font-size:18px">${catIcons[p.kategorie]||'📦'}</span>
+        <div style="flex:1;font-size:13px;font-weight:600">${p.name}</div>
+        <div style="font-size:13px;font-weight:700;color:var(--text)">${p.kaesten} Kst</div>
+      </div>`);
+  } else if (type === 'flaschen') {
+    title = '🍾 Artikel mit losen Flaschen';
+    items = prods.filter(p=>p.flaschen>0).sort((a,b)=>b.flaschen-a.flaschen)
+      .map(p=>`<div class="dash-top-item">
+        <span style="font-size:18px">${catIcons[p.kategorie]||'📦'}</span>
+        <div style="flex:1;font-size:13px;font-weight:600">${p.name}</div>
+        <div style="font-size:13px;font-weight:700;color:var(--blue)">${p.flaschen} Fl</div>
+      </div>`);
+  } else if (type === 'alarm') {
+    title = '⚠️ Mindestbestand unterschritten';
+    items = prods.filter(p=>p.kaesten<(p.minBestand||0)).sort((a,b)=>a.kaesten-b.kaesten)
+      .map(p=>`<div class="dash-top-item" style="border-left:3px solid var(--red)">
+        <span style="font-size:18px">${catIcons[p.kategorie]||'📦'}</span>
+        <div style="flex:1;font-size:13px;font-weight:600">${p.name}</div>
+        <div style="font-size:12px;color:var(--red)">${p.kaesten}/${p.minBestand} Kst</div>
+      </div>`);
+  }
+
+  document.getElementById('dashPopupTitle').textContent = title;
+  document.getElementById('dashPopupList').innerHTML = items.length
+    ? `<div style="max-height:55vh;overflow-y:auto">${items.join('')}</div>`
+    : '<div class="empty"><div class="ei">✅</div><p>Keine Einträge</p></div>';
+  document.getElementById('dashPopup').classList.add('open');
+};
+
 window.deleteHistEntry = async function(key) {
   if (!confirm('Diesen Verlaufseintrag wirklich löschen?')) return;
   if (connected) {
@@ -932,15 +984,31 @@ window.confirmDelete = async function() {
 const bIn = document.getElementById('bIn');
 bIn.addEventListener('keydown', e => { if(e.key==='Enter') doScan(); });
 document.addEventListener('click', e => {
-  // Login-Screen aktiv → nichts tun
   if (!document.getElementById('loginScreen').classList.contains('hidden')) return;
-  // Klick auf interaktives Element → nichts tun
   if (e.target.closest('button, a, input, textarea, select, label, .overlay, #loginScreen, .bnav, .fab, [data-histkey], [data-action]')) return;
-  // Nur im Lager-Tab Fokus setzen
   const activView = document.querySelector('.view.active');
-  if (!activView || activView.id !== 'vLager') return;
-  setTimeout(()=>bIn.focus(), 80);
+  if (!activView) return;
+  setTimeout(() => {
+    const focused = document.activeElement;
+    if (focused && (focused.tagName === 'INPUT' || focused.tagName === 'TEXTAREA' || focused.tagName === 'SELECT')) return;
+    if (activView.id === 'vLager')    bIn.focus();
+    if (activView.id === 'vInventur') document.getElementById('invScanIn')?.focus();
+  }, 80);
 });
+
+window.doInvScan = function() {
+  const el = document.getElementById('invScanIn');
+  const code = el.value.trim();
+  el.value = '';
+  if (!code) return;
+  const entry = Object.entries(products).find(([,p])=>p.barcode===code);
+  if (entry) {
+    openInvModal(entry[0]);
+    toast('🔢 ' + entry[1].name + ' – Inventur', 'i');
+  } else {
+    toast('Barcode unbekannt', 'e');
+  }
+};
 
 window.doScan = function() {
   const code = bIn.value.trim();
@@ -1223,7 +1291,7 @@ window.switchView = function(v) {
   document.getElementById('scanStrip').style.display = showScan?'block':'none';
   document.querySelector('.fab').style.display = (v==='History'||v==='Bestellung'||v==='Inventur')?'none':'flex';
   if (v==='Artikel') renderArtikel();
-  if (v==='Inventur') renderInventur();
+  if (v==='Inventur') { renderInventur(); setTimeout(()=>document.getElementById('invScanIn')?.focus(),150); }
   if (v==='Bestellung') renderBestellung();
   if (v==='Dashboard') renderDashboard();
   if (v==='History') renderHistory();
@@ -1534,9 +1602,19 @@ let appUsers = {};
 let currentUser = null; // { kuerzel, role }
 
 function getUsers() {
-  // Merge Firebase-Benutzer mit Default
   const stored = JSON.parse(localStorage.getItem('balloni_users') || '{}');
   return Object.assign({}, DEFAULT_USERS, stored);
+}
+
+// Firebase-User sofort beim Laden synchronisieren (vor Login)
+if (window.__fb && window.__fb.connected) {
+  window.__fb.onValue(window.__fb.ref(window.__fb.db, 'users'), snap => {
+    const fbUsers = snap.val() || {};
+    const local   = JSON.parse(localStorage.getItem('balloni_users') || '{}');
+    const merged  = Object.assign({}, local, fbUsers);
+    localStorage.setItem('balloni_users', JSON.stringify(merged));
+    appUsers = getUsers();
+  });
 }
 function saveUsers(u) {
   // Don't save ADM to localStorage – it's always in DEFAULT_USERS
@@ -1703,10 +1781,10 @@ window.renderDashboard = function() {
   const alarmCount  = prods.filter(p=>p.kaesten<(p.minBestand||0)).length;
 
   document.getElementById('dashGrid').innerHTML = `
-    <div class="dash-card"><div class="dash-val">${totalProds}</div><div class="dash-label">Artikel</div></div>
-    <div class="dash-card"><div class="dash-val">${totalKasten}</div><div class="dash-label">Kästen gesamt</div></div>
-    <div class="dash-card"><div class="dash-val">${totalFl}</div><div class="dash-label">Lose Flaschen</div></div>
-    <div class="dash-card" style="${alarmCount>0?'border-color:var(--red);background:#fdecea':''}">
+    <div class="dash-card" onclick="showDashPopup('alle')" style="cursor:pointer"><div class="dash-val">${totalProds}</div><div class="dash-label">Artikel</div></div>
+    <div class="dash-card" onclick="showDashPopup('kaesten')" style="cursor:pointer"><div class="dash-val">${totalKasten}</div><div class="dash-label">Kästen gesamt</div></div>
+    <div class="dash-card" onclick="showDashPopup('flaschen')" style="cursor:pointer"><div class="dash-val">${totalFl}</div><div class="dash-label">Lose Flaschen</div></div>
+    <div class="dash-card" onclick="showDashPopup('alarm')" style="cursor:pointer;${alarmCount>0?'border-color:var(--red);background:#fdecea':''}">
       <div class="dash-val" style="${alarmCount>0?'color:var(--red)':''}">${alarmCount}</div>
       <div class="dash-label">⚠️ Alarme</div>
     </div>`;
@@ -1805,16 +1883,6 @@ function checkAlarms() {
 
 // ── INIT ──────────────────────────────────────────────────────────────────────
 function startApp() {
-  // Sync users from Firebase if connected
-  if (window.__fb && window.__fb.connected) {
-    window.__fb.onValue(window.__fb.ref(window.__fb.db, 'users'), snap => {
-      const fbUsers = snap.val() || {};
-      const local   = JSON.parse(localStorage.getItem('balloni_users') || '{}');
-      const merged  = Object.assign({}, local, fbUsers);
-      localStorage.setItem('balloni_users', JSON.stringify(merged));
-      appUsers = getUsers();
-    });
-  }
   // History filter
   document.getElementById('histFilter').addEventListener('change', renderHistory);
 
@@ -1848,5 +1916,12 @@ if (savedSession) {
   setTimeout(() => document.getElementById('userKuerzel').focus(), 100);
 }
 </script>
+<div class="overlay" id="dashPopup" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal" style="max-width:420px">
+    <h2 id="dashPopupTitle" style="font-family:'Bebas Neue',sans-serif;letter-spacing:2px;font-size:22px;margin-bottom:14px"></h2>
+    <div id="dashPopupList"></div>
+    <button class="btn btn-surface" style="width:100%;margin-top:14px" onclick="document.getElementById('dashPopup').classList.remove('open')">Schließen</button>
+  </div>
+</div>
 </body>
 </html>
