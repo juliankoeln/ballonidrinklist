@@ -396,10 +396,15 @@ select.fi2{appearance:none}
 <!-- SCANNER STRIP -->
 <div id="scanStrip">
   <div id="foundCard">
-    <div class="fn" id="fName">—</div>
-    <div class="fi">
-      <div>Kästen: <strong id="fKst">0</strong></div>
-      <div>Flaschen: <strong id="fFl">0</strong></div>
+    <div style="display:flex;align-items:center;gap:6px">
+      <div style="flex:1">
+        <div class="fn" id="fName">—</div>
+        <div class="fi">
+          <div>Kästen: <strong id="fKst">0</strong></div>
+          <div>Flaschen: <strong id="fFl">0</strong></div>
+        </div>
+      </div>
+      <button onclick="clearFoundCard()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted);padding:4px;line-height:1" title="Auswahl aufheben">✕</button>
     </div>
   </div>
 
@@ -467,7 +472,7 @@ select.fi2{appearance:none}
   <!-- LAGER VIEW -->
   <div class="view active" id="vLager">
     <div class="toolbar">
-      <input type="text" class="search-bar" id="searchIn" placeholder="🔍 Produkt suchen…" oninput="renderList()">
+      <input type="text" class="search-bar" id="searchIn" placeholder="🔍 Produkt suchen…">
       <button class="btn btn-surface btn-sm" onclick="exportExcel()">📊 Excel</button>
     </div>
     <div class="sec-title">Lagerbestand <span class="badge" id="listCt">0 Artikel</span></div>
@@ -988,12 +993,11 @@ document.addEventListener('click', e => {
   if (e.target.closest('button, a, input, textarea, select, label, .overlay, #loginScreen, .bnav, .fab, [data-histkey], [data-action]')) return;
   const activView = document.querySelector('.view.active');
   if (!activView) return;
-  setTimeout(() => {
-    const focused = document.activeElement;
-    if (focused && (focused.tagName === 'INPUT' || focused.tagName === 'TEXTAREA' || focused.tagName === 'SELECT')) return;
-    if (activView.id === 'vLager')    bIn.focus();
-    if (activView.id === 'vInventur') document.getElementById('invScanIn')?.focus();
-  }, 80);
+  // Nur wenn kein Input bereits fokussiert ist
+  const focused = document.activeElement;
+  if (focused && (focused.tagName === 'INPUT' || focused.tagName === 'TEXTAREA' || focused.tagName === 'SELECT')) return;
+  if (activView.id === 'vLager')    { setTimeout(()=>{ if(!document.getElementById('searchIn')?.dataset.active && document.activeElement?.id!=='searchIn') bIn.focus(); },80); }
+  if (activView.id === 'vInventur') { setTimeout(()=>{ if(document.activeElement?.tagName!=='INPUT') document.getElementById('invScanIn')?.focus(); },80); }
 });
 
 window.doInvScan = function() {
@@ -1066,6 +1070,15 @@ window.applyChange = async function(dir) {
   document.getElementById('qF').value = 0;
 
   if (nK < (p.minBestand||0)) setTimeout(()=>toast(`⚠️ ${p.name}: Mindestbestand!`,'e'),1400);
+};
+
+window.clearFoundCard = function() {
+  currentId = null;
+  document.getElementById('foundCard').classList.remove('show');
+  document.getElementById('searchIn').value = '';
+  renderList();
+  bIn.value = '';
+  bIn.focus();
 };
 
 window.selProd = function(id) {
@@ -1282,6 +1295,14 @@ document.getElementById('camModal').addEventListener('click', e => {
 
 // ── VIEW SWITCH ───────────────────────────────────────────────────────────────
 window.switchView = function(v) {
+  // Beim Verlassen des Lager-Tabs: Auswahl und Suche zurücksetzen
+  const prev = document.querySelector('.view.active')?.id;
+  if (prev === 'vLager' && v !== 'Lager') {
+    currentId = null;
+    document.getElementById('foundCard').classList.remove('show');
+    document.getElementById('searchIn').value = '';
+    renderList();
+  }
   document.querySelectorAll('.view').forEach(e=>e.classList.remove('active'));
   document.querySelectorAll('.nbtn').forEach(e=>e.classList.remove('active'));
   document.getElementById('v'+v).classList.add('active');
@@ -1885,6 +1906,12 @@ function checkAlarms() {
 function startApp() {
   // History filter
   document.getElementById('histFilter').addEventListener('change', renderHistory);
+
+  // Suchfeld Lager – focus schützen damit bIn den Fokus nicht klaut
+  const searchInEl = document.getElementById('searchIn');
+  searchInEl.addEventListener('focus', () => { searchInEl.dataset.active = '1'; });
+  searchInEl.addEventListener('blur',  () => { delete searchInEl.dataset.active; });
+  searchInEl.addEventListener('input', renderList);
 
   initFirebase();
   bIn.focus();
