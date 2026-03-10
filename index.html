@@ -431,7 +431,7 @@ select.fi2{appearance:none}
       <div style="flex:1">
         <div class="fn" id="fName">—</div>
         <div class="fi">
-          <div>Kästen: <strong id="fKst">0</strong></div>
+          <div id="fKstLabel">Kästen: <strong id="fKst">0</strong></div>
           <div>Flaschen: <strong id="fFl">0</strong></div>
         </div>
       </div>
@@ -447,7 +447,7 @@ select.fi2{appearance:none}
 
   <div class="qty-grid">
     <div class="qty-block">
-      <label>📦 Kästen</label>
+      <label id="qKLabel">📦 Kästen</label>
       <div class="qty-row">
         <button class="qbtn m" onclick="dq('k',-1)">−</button>
         <input type="number" id="qK" class="qty-in" value="1" min="0">
@@ -721,7 +721,7 @@ select.fi2{appearance:none}
         <strong style="color:var(--text)">Claude</strong> · KI-Assistent von Anthropic
       </p>
       <p style="font-size:11px;color:var(--muted);margin-top:10px;letter-spacing:1px">
-        Version 0.36
+        Version 0.37
       </p>
     </div>
     <button class="btn btn-surface" style="width:100%;margin-top:16px" onclick="document.getElementById('impressumModal').classList.remove('open')">Schließen</button>
@@ -843,6 +843,19 @@ async function fbUpdate(path, data) {
 
 // ── RENDER ────────────────────────────────────────────────────────────────────
 const catIcons = {Bier:'🍺',Softdrink:'🥤',Wasser:'💧',Saft:'🍊',Wein:'🍷',Schnaps:'🥃',Sekt:'🥂',Sonstiges:'📦'};
+
+// Einheit-Labels Helper
+function einheitLabel(p, short=false) {
+  if (p.einheit==='fass')   return short ? 'Fass' : 'Fässer';
+  if (p.einheit==='karton') return short ? 'Krt'  : 'Kartons';
+  return short ? 'Kst' : 'Kästen';
+}
+function einheitIcon(p) {
+  if (p.einheit==='fass')   return '🛢️';
+  if (p.einheit==='karton') return '🗃️';
+  return '📦';
+}
+
 
 function render() {
   updateStats();
@@ -1029,11 +1042,11 @@ window.renderArtikel = function() {
         <div class="acard-info">
           <div class="acard-name">${p.name}${low?'<span class="low-badge">⚠️ Niedrig</span>':''}</div>
           <div class="acard-bar">${p.barcode||'kein Barcode'}</div>
-          <span class="acard-tag">${p.kategorie||'Sonstiges'} · ${p.proKasten||24} Fl/Kst</span>
+          <span class="acard-tag">${p.kategorie||'Sonstiges'}${p.einheit!=='fass' ? ' · '+(p.proKasten||24)+' Fl/'+einheitLabel(p,true) : ''}</span>
         </div>
       </div>
       <div class="acard-stats">
-        <div class="astat"><div class="astat-val">${p.kaesten||0}</div><div class="astat-lbl">Kästen</div></div>
+        <div class="astat"><div class="astat-val">${einheitIcon(p)} ${p.kaesten||0}</div><div class="astat-lbl">${einheitLabel(p)}</div></div>
         <div class="astat"><div class="astat-val">${p.flaschen||0}</div><div class="astat-lbl">lose Fl.</div></div>
         <div class="astat"><div class="astat-val">${total}</div><div class="astat-lbl">Fl. gesamt</div></div>
       </div>
@@ -1135,8 +1148,7 @@ window.doScan = function() {
   if (!code) return;
   const entry = Object.entries(products).find(([,p])=>p.barcode===code);
   if (entry) {
-    openAdd(entry[0]);
-    toast('✏️ ' + entry[1].name + ' – Bearbeiten', 'i');
+    selProd(entry[0]);
   } else {
     currentId = null;
     document.getElementById('foundCard').classList.remove('show');
@@ -1201,12 +1213,20 @@ window.clearFoundCard = function() {
 window.selProd = function(id) {
   currentId = id;
   const p = products[id];
+  const lbl = einheitLabel(p, true);
+  const ico = einheitIcon(p);
   document.getElementById('fName').textContent = p.name;
   document.getElementById('fKst').textContent  = p.kaesten;
   document.getElementById('fFl').textContent   = p.flaschen;
+  // Einheit-Label in foundCard und Buchungsbereich anpassen
+  document.getElementById('fKstLabel').innerHTML = lbl + ': <strong id="fKst">' + p.kaesten + '</strong>';
+  document.getElementById('qKLabel').textContent  = ico + ' ' + lbl;
+  // Flaschen-Zeile ausblenden bei Fass (macht keinen Sinn)
+  const flRow = document.querySelector('.qty-grid .qty-block:last-child');
+  if (flRow) flRow.style.display = p.einheit === 'fass' ? 'none' : '';
   document.getElementById('foundCard').classList.add('show');
   window.scrollTo({top:0,behavior:'smooth'});
-  toast(`📦 ${p.name} ausgewählt`,'i');
+  toast(ico + ' ' + p.name + ' ausgewählt','i');
 };
 
 // ── PRODUCT CRUD ──────────────────────────────────────────────────────────────
@@ -1492,10 +1512,10 @@ window.renderInventur = function() {
       <div class="inv-top">
         <div style="font-size:22px">${catIcons[p.kategorie]||'📦'}</div>
         <div style="flex:1"><div class="inv-name">${p.name}</div><div class="inv-bar">${p.barcode||'–'}</div></div>
-        <div style="text-align:right;font-size:12px;color:#888">Ist: <b>${p.kaesten}K / ${p.flaschen}Fl</b></div>
+        <div style="text-align:right;font-size:12px;color:#888">Ist: <b>${einheitIcon(p)}${p.kaesten} / ${p.flaschen}Fl</b></div>
       </div>
       <div class="inv-row">
-        <div class="inv-field"><label>Kästen</label><input class="inv-in" type="number" id="ik_${p.id}" value="${p.kaesten}" min="0"></div>
+        <div class="inv-field"><label>${einheitLabel(p)}</label><input class="inv-in" type="number" id="ik_${p.id}" value="${p.kaesten}" min="0"></div>
         <div class="inv-field"><label>Flaschen</label><input class="inv-in" type="number" id="if_${p.id}" value="${p.flaschen}" min="0"></div>
       </div>
       <button class="inv-save" id="isv_${p.id}" onclick="saveInv('${p.id}')">💾 Bestand speichern</button>
