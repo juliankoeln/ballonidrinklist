@@ -452,7 +452,7 @@ select.fi2{appearance:none}
 
   <div class="qty-grid">
     <div class="qty-block">
-      <label id="qKLabel">🧺 Kästen</label>
+      <label id="qKLabel">Menge 1</label>
       <div class="qty-row">
         <button class="qbtn m" onclick="dq('k',-1)">−</button>
         <input type="number" id="qK" class="qty-in" value="1" min="0">
@@ -460,7 +460,7 @@ select.fi2{appearance:none}
       </div>
     </div>
     <div class="qty-block">
-      <label>🍾 Flaschen</label>
+      <label id="qFLabel">Menge 2</label>
       <div class="qty-row">
         <button class="qbtn m" onclick="dq('f',-1)">−</button>
         <input type="number" id="qF" class="qty-in" value="0" min="0">
@@ -725,7 +725,7 @@ select.fi2{appearance:none}
         <strong style="color:var(--text)">Claude</strong> · KI-Assistent von Anthropic
       </p>
       <p style="font-size:11px;color:var(--muted);margin-top:10px;letter-spacing:1px">
-        Version 0.41
+        Version 0.42
       </p>
     </div>
     <button class="btn btn-surface" style="width:100%;margin-top:16px" onclick="document.getElementById('impressumModal').classList.remove('open')">Schließen</button>
@@ -1267,6 +1267,8 @@ window.clearFoundCard = function() {
   document.getElementById('searchIn').value = '';
   renderList();
   bIn.value = '';
+  document.getElementById('qKLabel').textContent = 'Menge 1';
+  document.getElementById('qFLabel').textContent = 'Menge 2';
 };
 
 window.selProd = function(id) {
@@ -1279,7 +1281,8 @@ window.selProd = function(id) {
   document.getElementById('fFl').textContent   = p.flaschen;
   // Einheit-Label in foundCard und Buchungsbereich anpassen
   document.getElementById('fKstLabel').innerHTML = lbl + ': <strong id="fKst">' + p.kaesten + '</strong>';
-  document.getElementById('qKLabel').textContent  = ico + ' ' + lbl;
+  document.getElementById('qKLabel').textContent = ico + ' ' + lbl;
+  document.getElementById('qFLabel').textContent = '🍾 Flaschen';
   // Flaschen-Zeile ausblenden bei Fass (macht keinen Sinn)
   const flRow = document.querySelector('.qty-grid .qty-block:last-child');
   if (flRow) flRow.style.display = p.einheit === 'fass' ? 'none' : '';
@@ -1511,9 +1514,8 @@ window.switchView = function(v) {
   document.querySelectorAll('.nbtn').forEach(e=>e.classList.remove('active'));
   document.getElementById('v'+v).classList.add('active');
   document.getElementById('n'+v).classList.add('active');
-  const showScan = v==='Lager' || v==='Inventur';
   document.querySelector('.fab').style.display = (v==='History'||v==='Bestellung'||v==='Inventur'||v==='Dashboard')?'none':'flex';
-  document.getElementById('scanStrip').style.display = showScan?'block':'none';
+  document.getElementById('scanStrip').style.display = v==='Lager'?'block':'none';
   document.querySelector('.fab').style.display = (v==='History'||v==='Bestellung'||v==='Inventur')?'none':'flex';
   if (v==='Artikel') { renderArtikel(); }
   if (v==='Inventur') { renderInventur(); }
