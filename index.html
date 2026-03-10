@@ -552,6 +552,11 @@ select.fi2{appearance:none}
 
   <!-- ARTIKEL VIEW -->
   <div class="view" id="vArtikel">
+    <!-- Unsichtbares Feld für Laser-Scanner im Artikel-Reiter -->
+    <input type="text" id="artScanIn" autocomplete="off"
+      autocorrect="off" autocapitalize="off" spellcheck="false"
+      style="position:absolute;opacity:0;pointer-events:none;width:1px;height:1px;font-size:16px"
+      onkeydown="if(event.key==='Enter')doArtScan()">
     <div class="toolbar">
       <input type="text" class="search-bar" id="artSearchIn" placeholder="🔍 Artikel suchen…" oninput="renderArtikel()">
       <select id="artKatFilter" class="search-bar" style="max-width:130px" onchange="renderArtikel()">
@@ -1093,7 +1098,23 @@ document.addEventListener('click', e => {
   if (focused && (focused.tagName === 'INPUT' || focused.tagName === 'TEXTAREA' || focused.tagName === 'SELECT')) return;
   if (activView.id === 'vLager')    { setTimeout(()=>{ if(!document.getElementById('searchIn')?.dataset.active && document.activeElement?.id!=='searchIn') bIn.focus(); },80); }
   if (activView.id === 'vInventur') { setTimeout(()=>{ if(document.activeElement?.tagName!=='INPUT') document.getElementById('invScanIn')?.focus(); },80); }
+  if (activView.id === 'vArtikel')  { setTimeout(()=>{ if(document.activeElement?.tagName!=='INPUT') document.getElementById('artScanIn')?.focus(); },80); }
 });
+
+window.doArtScan = function() {
+  const el = document.getElementById('artScanIn');
+  const code = el.value.trim();
+  el.value = '';
+  if (!code) return;
+  const entry = Object.entries(products).find(([,p]) => p.barcode === code);
+  if (entry) {
+    openAdd(entry[0]);
+    toast('✏️ ' + entry[1].name + ' – Bearbeiten', 'i');
+  } else {
+    openAdd(null, code);
+    toast('Barcode unbekannt – neues Produkt anlegen', 'e');
+  }
+};
 
 window.doInvScan = function() {
   const el = document.getElementById('invScanIn');
@@ -1102,8 +1123,8 @@ window.doInvScan = function() {
   if (!code) return;
   const entry = Object.entries(products).find(([,p])=>p.barcode===code);
   if (entry) {
-    openInvModal(entry[0]);
-    toast('🔢 ' + entry[1].name + ' – Inventur', 'i');
+    openAdd(entry[0]);
+    toast('✏️ ' + entry[1].name + ' – Bearbeiten', 'i');
   } else {
     toast('Barcode unbekannt', 'e');
   }
@@ -1113,24 +1134,13 @@ window.doScan = function() {
   const code = bIn.value.trim();
   if (!code) return;
   const entry = Object.entries(products).find(([,p])=>p.barcode===code);
-  const activeView = document.querySelector('.view.active')?.id;
   if (entry) {
-    if (activeView === 'vInventur') {
-      openInvModal(entry[0]);
-      toast('🔢 ' + entry[1].name + ' – Inventur', 'i');
-    } else {
-      currentId = entry[0];
-      const p = entry[1];
-      document.getElementById('fName').textContent = p.name;
-      document.getElementById('fKst').textContent  = p.kaesten;
-      document.getElementById('fFl').textContent   = p.flaschen;
-      document.getElementById('foundCard').classList.add('show');
-      toast(`📦 ${p.name} gefunden`, 'i');
-    }
+    openAdd(entry[0]);
+    toast('✏️ ' + entry[1].name + ' – Bearbeiten', 'i');
   } else {
     currentId = null;
     document.getElementById('foundCard').classList.remove('show');
-    openAdd(null, code);  // Barcode direkt übergeben
+    openAdd(null, code);
     toast('Barcode unbekannt – neues Produkt anlegen', 'e');
   }
   bIn.value = '';
@@ -1426,7 +1436,7 @@ window.switchView = function(v) {
   document.querySelector('.fab').style.display = (v==='History'||v==='Bestellung'||v==='Inventur'||v==='Dashboard')?'none':'flex';
   document.getElementById('scanStrip').style.display = showScan?'block':'none';
   document.querySelector('.fab').style.display = (v==='History'||v==='Bestellung'||v==='Inventur')?'none':'flex';
-  if (v==='Artikel') renderArtikel();
+  if (v==='Artikel') { renderArtikel(); setTimeout(()=>document.getElementById('artScanIn')?.focus(),150); }
   if (v==='Inventur') { renderInventur(); setTimeout(()=>document.getElementById('invScanIn')?.focus(),150); }
   if (v==='Bestellung') renderBestellung();
   if (v==='Dashboard') renderDashboard();
