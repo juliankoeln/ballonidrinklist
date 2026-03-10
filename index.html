@@ -1263,7 +1263,7 @@ window.saveProduct = async function() {
     kaesten:    parseInt(document.getElementById('fK0').value)||0,
     flaschen:   parseInt(document.getElementById('fF0').value)||0,
     minBestand: parseInt(document.getElementById('fMn').value)||0,
-    einheit:    isNew ? einheit : (products[id]?.einheit || 'kasten'),
+    einheit,
   };
   const key = id || Date.now().toString();
   await fbUpdate(`products/${key}`, data);
