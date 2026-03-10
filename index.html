@@ -1540,26 +1540,61 @@ window.switchView = function(v) {
 window.exportExcel = function() {
   const now = new Date();
   const ds  = now.toLocaleDateString('de-DE')+' '+now.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
-  const rows = [['Getränke Lagerbestand — Stand: '+ds],[],['Produkt','Kategorie','Barcode','Kästen','Lose Flaschen','Fl/Kasten','Gesamt Fl.','Mindestbestand','Status']];
-  Object.values(products).forEach(p=>{
-    const tot = (p.kaesten||0)*(p.proKasten||24)+(p.flaschen||0);
-    rows.push([p.name,p.kategorie||'',p.barcode||'',p.kaesten,p.flaschen,p.proKasten||24,tot,p.minBestand||0,
-      p.kaesten<(p.minBestand||0)?'⚠️ Nachbestellen':'✅ OK']);
+
+  // Sortierung: Kästen → Kartons → Fässer → dann alphabetisch
+  const einheitOrder = { kasten:0, karton:1, fass:2 };
+  const sorted = Object.values(products).sort((a,b) => {
+    const oa = einheitOrder[a.einheit||'kasten'] ?? 0;
+    const ob = einheitOrder[b.einheit||'kasten'] ?? 0;
+    if (oa !== ob) return oa - ob;
+    return (a.name||'').localeCompare(b.name||'');
   });
+
+  const rows = [
+    ['Getränke Lagerbestand — Stand: '+ds],
+    [],
+    ['Produkt','Kategorie','Barcode','Einheit','Kästen','Fässer','Kartons','Lose Flaschen','Fl/Einheit','Liter/Fl.','Gesamt Fl.','Mindestbestand','Status']
+  ];
+
+  sorted.forEach(p => {
+    const einheit = p.einheit || 'kasten';
+    const kaesten  = einheit === 'kasten' ? (p.kaesten||0) : '';
+    const faesser  = einheit === 'fass'   ? (p.kaesten||0) : '';
+    const kartons  = einheit === 'karton' ? (p.kaesten||0) : '';
+    const tot = einheit !== 'fass' ? (p.kaesten||0)*(p.proKasten||24)+(p.flaschen||0) : '–';
+    rows.push([
+      p.name,
+      p.kategorie||'',
+      p.barcode||'',
+      einheit === 'fass' ? 'Fass' : einheit === 'karton' ? 'Karton' : 'Kasten',
+      kaesten, faesser, kartons,
+      p.flaschen||0,
+      einheit !== 'fass' ? (p.proKasten||24) : '–',
+      p.liter||'',
+      tot,
+      p.minBestand||0,
+      p.kaesten < (p.minBestand||0) ? '⚠️ Nachbestellen' : '✅ OK'
+    ]);
+  });
+
   const hrows=[['Buchungsverlauf'],[],['Datum','Uhrzeit','Produkt','Art','Kästen','Flaschen','Bestand Kst','Bestand Fl','Benutzer']];
   Object.values(history).sort((a,b)=>new Date(b.ts)-new Date(a.ts)).forEach(h=>{
     const d=new Date(h.ts);
     hrows.push([d.toLocaleDateString('de-DE'),d.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}),
       h.pn,h.dir==='p'?'Eingang':h.dir==='inv'?'Inventur':'Ausgang',h.dK,h.dF,h.nK,h.nF,h.user||'–']);
   });
-  const wb=XLSX.utils.book_new();
-  const ws1=XLSX.utils.aoa_to_sheet(rows);
-  const ws2=XLSX.utils.aoa_to_sheet(hrows);
-  ws1['!cols']=[30,12,16,8,14,12,12,14,16].map(w=>({wch:w}));
-  ws2['!cols']=[12,8,28,10,8,10,12,12].map(w=>({wch:w}));
-  XLSX.utils.book_append_sheet(wb,ws1,'Lagerbestand');
-  XLSX.utils.book_append_sheet(wb,ws2,'Buchungsverlauf');
-  XLSX.writeFile(wb,`Lager_${now.toISOString().slice(0,10)}.xlsx`);
+
+  const wb  = XLSX.utils.book_new();
+  const ws1 = XLSX.utils.aoa_to_sheet(rows);
+  const ws2 = XLSX.utils.aoa_to_sheet(hrows);
+  ws1['!cols'] = [28,12,16,10,8,8,8,14,12,10,12,14,16].map(w=>({wch:w}));
+  ws2['!cols'] = [12,8,28,10,8,10,12,12,10].map(w=>({wch:w}));
+  // Querformat für beide Sheets
+  ws1['!pageSetup'] = { orientation:'landscape', fitToPage:true, fitToWidth:1, fitToHeight:0, paperSize:9 };
+  ws2['!pageSetup'] = { orientation:'landscape', fitToPage:true, fitToWidth:1, fitToHeight:0, paperSize:9 };
+  XLSX.utils.book_append_sheet(wb, ws1, 'Lagerbestand');
+  XLSX.utils.book_append_sheet(wb, ws2, 'Buchungsverlauf');
+  XLSX.writeFile(wb, `Lager_${now.toISOString().slice(0,10)}.xlsx`);
   toast('📊 Excel gespeichert','s');
 };
 
@@ -1778,16 +1813,21 @@ window.exportBestellung = function() {
     [''],
     ['BESTELLLISTE – ' + ds],
     [''],
-    ['Produkt', 'Kästen', 'Flaschen', 'Notiz'],
+    ['Produkt', 'Einheit', 'Menge', 'Lose Flaschen', 'Notiz'],
   ];
-  bestellung.forEach(pos => rows.push([pos.name, pos.k||'', pos.f||'', pos.note||'']));
+  bestellung.forEach(pos => {
+    const prod = Object.values(products).find(p=>p.name===pos.name);
+    const einh = prod ? (prod.einheit==='fass'?'Fass':prod.einheit==='karton'?'Karton':'Kasten') : 'Kasten';
+    rows.push([pos.name, einh, pos.k||'', pos.f||'', pos.note||'']);
+  });
   rows.push(['']);
   rows.push(['Erstellt mit Balloni Getränkeliste']);
 
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.aoa_to_sheet(rows);
-  ws['!cols'] = [35, 10, 10, 25].map(w=>({wch:w}));
-  ws['!merges'] = [{s:{r:0,c:0},e:{r:0,c:3}},{s:{r:1,c:0},e:{r:1,c:3}},{s:{r:2,c:0},e:{r:2,c:3}}];
+  ws['!cols'] = [35, 10, 10, 14, 25].map(w=>({wch:w}));
+  ws['!merges'] = [{s:{r:0,c:0},e:{r:0,c:4}},{s:{r:1,c:0},e:{r:1,c:4}},{s:{r:2,c:0},e:{r:2,c:4}}];
+  ws['!pageSetup'] = { orientation:'landscape', fitToPage:true, fitToWidth:1, fitToHeight:0, paperSize:9 };
 
   // Styles
   const thinBorder = { style:'thin', color:{ rgb:'BBBBBB' } };
@@ -1795,7 +1835,7 @@ window.exportBestellung = function() {
   const headerRowIdx = 6; // 0-based: row 7 in Excel = "Produkt/Kästen/..."
 
   const totalDataRows = rows.length;
-  const cols = ['A','B','C','D'];
+  const cols = ['A','B','C','D','E'];
 
   for (let r = headerRowIdx; r < totalDataRows; r++) {
     for (const col of cols) {
@@ -1823,7 +1863,11 @@ window.exportBestellung = function() {
   toast('📄 Bestellung exportiert', 's');
 
   // Verlauf-Eintrag
-  const posList = bestellung.map(p => `${p.name}${p.k?' ('+p.k+' Kst)':''}${p.f?' ('+p.f+' Fl)':''}`).join(', ');
+  const posList = bestellung.map(p => {
+    const prod = Object.values(products).find(pr=>pr.name===p.name);
+    const einh = prod ? (prod.einheit==='fass'?'Fass':prod.einheit==='karton'?'Krt':'Kst') : 'Kst';
+    return `${p.name}${p.k?' ('+p.k+' '+einh+')':''}${p.f?' ('+p.f+' Fl)':''}`;
+  }).join(', ');
   fbPush('history', {
     pn: '🛒 Bestellung erstellt: ' + posList,
     dK: 0, dF: 0, nK: 0, nF: 0,
