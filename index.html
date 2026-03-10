@@ -439,11 +439,19 @@ select.fi2{appearance:none}
     </div>
   </div>
 
-  <div class="scan-row">
-    <input type="text" id="bIn" class="scan-in" placeholder="🔫 Hier tippen dann scannen…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" readonly onfocus="this.removeAttribute('readonly')">
+  <div style="display:flex;gap:8px;margin-bottom:6px">
+    <input type="text" id="bIn" class="scan-in"
+      placeholder="◉ Scanner-Feld – hier antippen"
+      autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+      inputmode="text"
+      style="flex:1;font-size:16px;padding:14px 12px;border:2px solid var(--accent);border-radius:var(--r);background:var(--surface);color:var(--text)">
     <button class="btn btn-blue" onclick="openCamera()" title="Kamera-Scanner">📷</button>
     <button class="btn btn-accent" onclick="doScan()">✓</button>
   </div>
+  <button onclick="document.getElementById('bIn').focus()" 
+    style="width:100%;padding:10px;margin-bottom:8px;background:var(--accent);color:#fff;border:none;border-radius:var(--r);font-size:14px;font-weight:700;cursor:pointer;letter-spacing:1px">
+    🔫 SCANNER AKTIVIEREN
+  </button>
 
   <div class="qty-grid">
     <div class="qty-block">
@@ -718,7 +726,7 @@ select.fi2{appearance:none}
         <strong style="color:var(--text)">Claude</strong> · KI-Assistent von Anthropic
       </p>
       <p style="font-size:11px;color:var(--muted);margin-top:10px;letter-spacing:1px">
-        Version 0.38
+        Version 0.40
       </p>
     </div>
     <button class="btn btn-surface" style="width:100%;margin-top:16px" onclick="document.getElementById('impressumModal').classList.remove('open')">Schließen</button>
@@ -1097,7 +1105,16 @@ window.confirmDelete = async function() {
 
 // ── SCANNER ───────────────────────────────────────────────────────────────────
 const bIn = document.getElementById('bIn');
-bIn.addEventListener('keydown', e => { if(e.key==='Enter') doScan(); });
+bIn.addEventListener('keydown',  e => { if(e.key==='Enter'){ clearTimeout(bInTimer); doScan(); } });
+bIn.addEventListener('keypress', e => { if(e.key==='Enter'){ clearTimeout(bInTimer); doScan(); } });
+let bInTimer = null;
+bIn.addEventListener('input', () => {
+  clearTimeout(bInTimer);
+  if (bIn.value.trim().length >= 4) {
+    // Nach 400ms Pause ohne neue Eingabe → automatisch auslösen
+    bInTimer = setTimeout(() => { if(bIn.value.trim()) doScan(); }, 400);
+  }
+});
 document.addEventListener('click', e => {
   if (!document.getElementById('loginScreen').classList.contains('hidden')) return;
   if (e.target.closest('button, a, input, textarea, select, label, .overlay, #loginScreen, .bnav, .fab, [data-histkey], [data-action]')) return;
@@ -1124,10 +1141,27 @@ window.doArtScan = function() {
   }
 };
 
+// invScanIn Timer
+let invScanTimer = null;
+document.addEventListener('DOMContentLoaded', () => {
+  const invEl = document.getElementById('invScanIn');
+  if (invEl) {
+    invEl.addEventListener('keydown',  e => { if(e.key==='Enter'){ clearTimeout(invScanTimer); doInvScan(); } });
+    invEl.addEventListener('keypress', e => { if(e.key==='Enter'){ clearTimeout(invScanTimer); doInvScan(); } });
+    invEl.addEventListener('input', () => {
+      clearTimeout(invScanTimer);
+      if (invEl.value.trim().length >= 4) {
+        invScanTimer = setTimeout(() => { if(invEl.value.trim()) doInvScan(); }, 400);
+      }
+    });
+  }
+});
+
 window.doInvScan = function() {
   const el = document.getElementById('invScanIn');
   const code = el.value.trim();
   el.value = '';
+  setTimeout(() => el.focus(), 100);
   if (!code) return;
   const entry = Object.entries(products).find(([,p])=>p.barcode===code);
   if (entry) {
@@ -1151,6 +1185,8 @@ window.doScan = function() {
     toast('Barcode unbekannt – neues Produkt anlegen', 'e');
   }
   bIn.value = '';
+  // Feld bleibt fokussiert für nächsten Scan
+  setTimeout(() => bIn.focus(), 100);
 };
 
 window.dq = function(f, d) {
