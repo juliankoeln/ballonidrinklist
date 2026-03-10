@@ -440,7 +440,7 @@ select.fi2{appearance:none}
   </div>
 
   <div class="scan-row">
-    <input type="text" id="bIn" class="scan-in" placeholder="Barcode scannen / eingeben…" inputmode="none" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+    <input type="text" id="bIn" class="scan-in" placeholder="Barcode scannen / eingeben…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
     <button class="btn btn-blue" onclick="openCamera()" title="Kamera-Scanner">📷</button>
     <button class="btn btn-accent" onclick="doScan()">✓</button>
   </div>
@@ -532,9 +532,9 @@ select.fi2{appearance:none}
     <div class="sec-title">Inventur <span class="badge" id="invCt">0 Artikel</span></div>
     <p style="font-size:12px;color:#888;margin-bottom:12px">Scanne oder wähle ein Produkt und trage den <strong>tatsächlichen Bestand</strong> ein. Der Wert wird direkt überschrieben.</p>
     <!-- Unsichtbares Feld für Laser-Scanner -->
-    <input type="text" id="invScanIn" inputmode="none" autocomplete="off"
+    <input type="text" id="invScanIn" autocomplete="off"
       autocorrect="off" autocapitalize="off" spellcheck="false"
-      style="position:absolute;opacity:0;pointer-events:none;width:0;height:0"
+      style="position:absolute;opacity:0;pointer-events:none;width:1px;height:1px;font-size:16px"
       onkeydown="if(event.key==='Enter')doInvScan()">
     <div id="invList"></div>
   </div>
@@ -716,7 +716,7 @@ select.fi2{appearance:none}
         <strong style="color:var(--text)">Claude</strong> · KI-Assistent von Anthropic
       </p>
       <p style="font-size:11px;color:var(--muted);margin-top:10px;letter-spacing:1px">
-        Version 0.35
+        Version 0.36
       </p>
     </div>
     <button class="btn btn-surface" style="width:100%;margin-top:16px" onclick="document.getElementById('impressumModal').classList.remove('open')">Schließen</button>
@@ -1212,9 +1212,9 @@ window.openAdd = function(id, prefillBarcode) {
     document.getElementById('fK0').value  = p.kaesten;
     document.getElementById('fF0').value  = p.flaschen;
     document.getElementById('fMn').value  = p.minBestand||1;
-    // Einheitenauswahl beim Bearbeiten ausblenden
-    document.getElementById('einheitRow').style.display = 'none';
-    document.getElementById('fK0label').textContent = 'Kästen / Fässer / Kartons';
+    // Einheitenauswahl beim Bearbeiten – aktuelle Einheit vorauswählen
+    document.getElementById('einheitRow').style.display = 'block';
+    selectEinheit(p.einheit || 'kasten');
   } else {
     document.getElementById('mTitle').textContent = '➕ Neues Produkt';
     document.getElementById('fNm').value  = '';
