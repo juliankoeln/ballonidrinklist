@@ -731,7 +731,7 @@ select.fi2{appearance:none}
         <strong style="color:var(--text)">Claude</strong> · KI-Assistent von Anthropic
       </p>
       <p style="font-size:11px;color:var(--muted);margin-top:10px;letter-spacing:1px">
-        Version 0.44
+        Version 0.45
       </p>
     </div>
     <button class="btn btn-surface" style="width:100%;margin-top:16px" onclick="document.getElementById('impressumModal').classList.remove('open')">Schließen</button>
@@ -1553,27 +1553,24 @@ window.exportExcel = function() {
   const rows = [
     ['Getränke Lagerbestand — Stand: '+ds],
     [],
-    ['Produkt','Kategorie','Barcode','Einheit','Kästen','Fässer','Kartons','Lose Flaschen','Fl/Einheit','Liter/Fl.','Gesamt Fl.','Mindestbestand','Status']
+    ['Produkt','Kategorie','Barcode','Kästen','Fässer','Kartons','Lose Flaschen','Fl/Einheit','Liter/Fl.','Gesamt Fl.']
   ];
 
   sorted.forEach(p => {
     const einheit = p.einheit || 'kasten';
-    const kaesten  = einheit === 'kasten' ? (p.kaesten||0) : '';
-    const faesser  = einheit === 'fass'   ? (p.kaesten||0) : '';
-    const kartons  = einheit === 'karton' ? (p.kaesten||0) : '';
+    const kaesten = einheit === 'kasten' ? (p.kaesten||0) : '';
+    const faesser = einheit === 'fass'   ? (p.kaesten||0) : '';
+    const kartons = einheit === 'karton' ? (p.kaesten||0) : '';
     const tot = einheit !== 'fass' ? (p.kaesten||0)*(p.proKasten||24)+(p.flaschen||0) : '–';
     rows.push([
       p.name,
       p.kategorie||'',
       p.barcode||'',
-      einheit === 'fass' ? 'Fass' : einheit === 'karton' ? 'Karton' : 'Kasten',
       kaesten, faesser, kartons,
       p.flaschen||0,
       einheit !== 'fass' ? (p.proKasten||24) : '–',
       p.liter||'',
       tot,
-      p.minBestand||0,
-      p.kaesten < (p.minBestand||0) ? '⚠️ Nachbestellen' : '✅ OK'
     ]);
   });
 
@@ -1587,7 +1584,7 @@ window.exportExcel = function() {
   const wb  = XLSX.utils.book_new();
   const ws1 = XLSX.utils.aoa_to_sheet(rows);
   const ws2 = XLSX.utils.aoa_to_sheet(hrows);
-  ws1['!cols'] = [28,12,16,10,8,8,8,14,12,10,12,14,16].map(w=>({wch:w}));
+  ws1['!cols'] = [30,12,16,8,8,8,14,10,10,12].map(w=>({wch:w}));
   ws2['!cols'] = [12,8,28,10,8,10,12,12,10].map(w=>({wch:w}));
   // Querformat für beide Sheets
   ws1['!pageSetup'] = { orientation:'landscape', fitToPage:true, fitToWidth:1, fitToHeight:0, paperSize:9 };
