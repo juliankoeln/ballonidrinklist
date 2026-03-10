@@ -731,7 +731,7 @@ select.fi2{appearance:none}
         <strong style="color:var(--text)">Claude</strong> · KI-Assistent von Anthropic
       </p>
       <p style="font-size:11px;color:var(--muted);margin-top:10px;letter-spacing:1px">
-        Version 0.45
+        Version 0.46
       </p>
     </div>
     <button class="btn btn-surface" style="width:100%;margin-top:16px" onclick="document.getElementById('impressumModal').classList.remove('open')">Schließen</button>
@@ -1553,7 +1553,7 @@ window.exportExcel = function() {
   const rows = [
     ['Getränke Lagerbestand — Stand: '+ds],
     [],
-    ['Produkt','Kategorie','Barcode','Kästen','Fässer','Kartons','Lose Flaschen','Fl/Einheit','Liter/Fl.','Gesamt Fl.']
+    ['Produkt','Kategorie','Kästen','Fässer','Kartons','Lose Flaschen','Fl/Einheit','Liter/Fl.','Gesamt Fl.']
   ];
 
   sorted.forEach(p => {
@@ -1565,7 +1565,6 @@ window.exportExcel = function() {
     rows.push([
       p.name,
       p.kategorie||'',
-      p.barcode||'',
       kaesten, faesser, kartons,
       p.flaschen||0,
       einheit !== 'fass' ? (p.proKasten||24) : '–',
@@ -1584,7 +1583,7 @@ window.exportExcel = function() {
   const wb  = XLSX.utils.book_new();
   const ws1 = XLSX.utils.aoa_to_sheet(rows);
   const ws2 = XLSX.utils.aoa_to_sheet(hrows);
-  ws1['!cols'] = [30,12,16,8,8,8,14,10,10,12].map(w=>({wch:w}));
+  ws1['!cols'] = [30,12,8,8,8,14,10,10,12].map(w=>({wch:w}));
   ws2['!cols'] = [12,8,28,10,8,10,12,12,10].map(w=>({wch:w}));
   // Querformat für beide Sheets
   ws1['!pageSetup'] = { orientation:'landscape', fitToPage:true, fitToWidth:1, fitToHeight:0, paperSize:9 };
