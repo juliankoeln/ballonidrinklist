@@ -662,6 +662,12 @@ select.fi2{appearance:none}
       </div>
     </div>
     <div class="fg" id="fPKrow"><label id="fPKlabel">Flaschen pro Kasten</label><input type="number" id="fPK" class="fi2" value="24" min="1"></div>
+    <div class="fg"><label>Liter pro Flasche / Einheit</label>
+      <div style="display:flex;align-items:center;gap:8px">
+        <input type="number" id="fLiter" class="fi2" value="" min="0.01" step="0.01" placeholder="z.B. 0.33" style="flex:1">
+        <span style="font-size:14px;color:var(--muted);white-space:nowrap">Liter</span>
+      </div>
+    </div>
     <div class="fg"><label id="fK0label">Anfangsbestand Kästen</label><input type="number" id="fK0" class="fi2" value="0" min="0"></div>
     <div class="fg"><label>Anfangsbestand Flaschen (lose)</label><input type="number" id="fF0" class="fi2" value="0" min="0"></div>
     <div class="fg"><label id="fMnLabel">Mindestbestand Kästen (Alarm)</label><input type="number" id="fMn" class="fi2" value="1" min="0"></div>
@@ -725,7 +731,7 @@ select.fi2{appearance:none}
         <strong style="color:var(--text)">Claude</strong> · KI-Assistent von Anthropic
       </p>
       <p style="font-size:11px;color:var(--muted);margin-top:10px;letter-spacing:1px">
-        Version 0.42
+        Version 0.44
       </p>
     </div>
     <button class="btn btn-surface" style="width:100%;margin-top:16px" onclick="document.getElementById('impressumModal').classList.remove('open')">Schließen</button>
@@ -898,7 +904,7 @@ function renderList() {
     return `<div class="pcard ${low?'low':''}" onclick="selProd('${p.id}')">
       <div class="picon">${catIcons[p.kategorie]||'📦'}</div>
       <div class="pdet">
-        <div class="pname">${p.name}</div>
+        <div class="pname">${p.name}${p.liter ? ' <span style="font-size:11px;color:var(--muted);font-weight:400">('+(p.liter%1===0?p.liter+'.0':p.liter)+' Liter)</span>' : ''}</div>
         <div class="pbar">${p.barcode||'kein Barcode'}</div>
         <span class="ptag">${p.kategorie||'Sonstiges'}</span>
       </div>
@@ -1190,7 +1196,7 @@ window.filterInventur = function(q, exactId) {
     <div class="inv-card" id="inv_${p.id}">
       <div class="inv-top">
         <div style="font-size:22px">${catIcons[p.kategorie]||'📦'}</div>
-        <div style="flex:1"><div class="inv-name">${p.name}</div><div class="inv-bar">${p.barcode||'–'}</div></div>
+        <div style="flex:1"><div class="inv-name">${p.name}${p.liter ? ' <span style="font-size:11px;color:var(--muted);font-weight:400">('+(p.liter%1===0?p.liter+'.0':p.liter)+' Liter)</span>' : ''}</div><div class="inv-bar">${p.barcode||'–'}</div></div>
         <div style="text-align:right;font-size:12px;color:#888">Ist: <b>${einheitIcon(p)}${p.kaesten} / ${p.flaschen}Fl</b></div>
       </div>
       <div class="inv-row">
@@ -1276,7 +1282,7 @@ window.selProd = function(id) {
   const p = products[id];
   const lbl = einheitLabel(p, true);
   const ico = einheitIcon(p);
-  document.getElementById('fName').textContent = p.name;
+  document.getElementById('fName').innerHTML = p.name + (p.liter ? ' <span style="font-size:11px;color:var(--muted);font-weight:400">('+( p.liter%1===0?p.liter+'.0':p.liter)+' Liter)</span>' : '');
   document.getElementById('fKst').textContent  = p.kaesten;
   document.getElementById('fFl').textContent   = p.flaschen;
   // Einheit-Label in foundCard und Buchungsbereich anpassen
@@ -1301,6 +1307,7 @@ window.openAdd = function(id, prefillBarcode) {
     document.getElementById('fBc').value  = p.barcode||'';
     document.getElementById('fKat').value = p.kategorie||'Sonstiges';
     document.getElementById('fPK').value  = p.proKasten||24;
+    document.getElementById('fLiter').value = p.liter||'';
     document.getElementById('fK0').value  = p.kaesten;
     document.getElementById('fF0').value  = p.flaschen;
     document.getElementById('fMn').value  = p.minBestand||1;
@@ -1313,6 +1320,7 @@ window.openAdd = function(id, prefillBarcode) {
     document.getElementById('fBc').value  = prefillBarcode || '';
     document.getElementById('fKat').value = 'Sonstiges';
     document.getElementById('fPK').value  = 24;
+    document.getElementById('fLiter').value = '';
     document.getElementById('fK0').value  = 0;
     document.getElementById('fF0').value  = 0;
     document.getElementById('fMn').value  = 1;
@@ -1345,6 +1353,7 @@ window.saveProduct = async function() {
     kaesten:    parseInt(document.getElementById('fK0').value)||0,
     flaschen:   parseInt(document.getElementById('fF0').value)||0,
     minBestand: parseInt(document.getElementById('fMn').value)||0,
+    liter:      parseFloat(document.getElementById('fLiter').value)||null,
     einheit,
   };
   const key = id || Date.now().toString();
@@ -1572,7 +1581,7 @@ window.renderInventur = function() {
     <div class="inv-card" id="inv_${p.id}">
       <div class="inv-top">
         <div style="font-size:22px">${catIcons[p.kategorie]||'📦'}</div>
-        <div style="flex:1"><div class="inv-name">${p.name}</div><div class="inv-bar">${p.barcode||'–'}</div></div>
+        <div style="flex:1"><div class="inv-name">${p.name}${p.liter ? ' <span style="font-size:11px;color:var(--muted);font-weight:400">('+(p.liter%1===0?p.liter+'.0':p.liter)+' Liter)</span>' : ''}</div><div class="inv-bar">${p.barcode||'–'}</div></div>
         <div style="text-align:right;font-size:12px;color:#888">Ist: <b>${einheitIcon(p)}${p.kaesten} / ${p.flaschen}Fl</b></div>
       </div>
       <div class="inv-row">
