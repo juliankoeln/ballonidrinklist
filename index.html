@@ -962,7 +962,7 @@ window.showDashPopup = function(type) {
       .map(p=>`<div class="dash-top-item">
         <span style="font-size:18px">${catIcons[p.kategorie]||'📦'}</span>
         <div style="flex:1;font-size:13px;font-weight:600">${p.name}</div>
-        <div style="font-size:12px;color:var(--muted)">${p.kaesten} Kst · ${p.flaschen} Fl</div>
+        <div style="font-size:12px;color:var(--muted)">${einheitIcon(p)}${p.kaesten} ${einheitLabel(p,true)} · ${p.flaschen} Fl</div>
       </div>`);
   } else if (type === 'kaesten') {
     title = '📦 Kästen nach Bestand';
@@ -970,7 +970,7 @@ window.showDashPopup = function(type) {
       .map(p=>`<div class="dash-top-item">
         <span style="font-size:18px">${catIcons[p.kategorie]||'📦'}</span>
         <div style="flex:1;font-size:13px;font-weight:600">${p.name}</div>
-        <div style="font-size:13px;font-weight:700;color:var(--text)">${p.kaesten} Kst</div>
+        <div style="font-size:13px;font-weight:700;color:var(--text)">${einheitIcon(p)}${p.kaesten} ${einheitLabel(p,true)}</div>
       </div>`);
   } else if (type === 'flaschen') {
     title = '🍾 Artikel mit losen Flaschen';
@@ -1002,7 +1002,7 @@ window.showDashPopup = function(type) {
       .map(p=>`<div class="dash-top-item" style="border-left:3px solid var(--red)">
         <span style="font-size:18px">${catIcons[p.kategorie]||'📦'}</span>
         <div style="flex:1;font-size:13px;font-weight:600">${p.name}</div>
-        <div style="font-size:12px;color:var(--red)">${p.kaesten}/${p.minBestand} Kst</div>
+        <div style="font-size:12px;color:var(--red)">${einheitIcon(p)}${p.kaesten}/${p.minBestand} ${einheitLabel(p,true)}</div>
       </div>`);
   }
 
@@ -1115,11 +1115,16 @@ bIn.addEventListener('keypress', e => { if(e.key==='Enter'){ clearTimeout(bInTim
 let bInTimer = null;
 bIn.addEventListener('input', () => {
   clearTimeout(bInTimer);
-  if (bIn.value.trim().length >= 4) {
-    // Nach 400ms Pause ohne neue Eingabe → automatisch auslösen
-    bInTimer = setTimeout(() => { if(bIn.value.trim()) doScan(); }, 400);
+  const val = bIn.value.trim();
+  if (val.length < 4) return;
+  // Auto-auslösen NUR wenn Barcode in der DB bekannt
+  // Unbekannt → immer warten auf Enter oder ✓ Button
+  const known = Object.values(products).some(p => p.barcode === val);
+  if (known) {
+    bInTimer = setTimeout(() => { if (bIn.value.trim()) doScan(); }, 300);
   }
 });
+bIn.addEventListener('focus', () => { clearTimeout(bInTimer); });
 document.addEventListener('click', e => {
   if (!document.getElementById('loginScreen').classList.contains('hidden')) return;
   if (e.target.closest('button, a, input, textarea, select, label, .overlay, #loginScreen, .bnav, .fab, [data-histkey], [data-action]')) return;
@@ -1155,16 +1160,14 @@ document.addEventListener('DOMContentLoaded', () => {
     clearTimeout(invScanTimer);
     const val = invEl.value.trim();
     if (!val) { renderInventur(); return; }
-    // Sofort filtern bei Texteingabe
+    // Sofort filtern bei Texteingabe (Name-Suche)
     filterInventur(val);
-    // Bei Barcode (>=4 Zeichen, 400ms Pause): exakte Barcode-Suche
+    // Exakte Barcode-Übereinstimmung → sofort auf diesen Artikel filtern
     if (val.length >= 4) {
-      invScanTimer = setTimeout(() => {
-        const byBarcode = Object.entries(products).find(([,p])=>p.barcode===val);
-        if (byBarcode) {
-          filterInventur(val, byBarcode[0]);
-        }
-      }, 400);
+      const byBarcode = Object.entries(products).find(([,p])=>p.barcode===val);
+      if (byBarcode) {
+        filterInventur(val, byBarcode[0]);
+      }
     }
   });
   invEl.addEventListener('keydown',  e => { if(e.key==='Enter'){ clearTimeout(invScanTimer); doInvScan(); } });
@@ -2048,7 +2051,7 @@ window.renderDashboard = function() {
     ? alarmed.map(([id,p])=>`<div class="dash-alarm">
         <span style="font-size:22px">${catIcons[p.kategorie]||'📦'}</span>
         <div style="flex:1"><div style="font-weight:600;font-size:14px">${p.name}</div>
-        <div style="font-size:12px;color:var(--muted)">Bestand: ${p.kaesten} Kst · Minimum: ${p.minBestand} Kst</div></div>
+        <div style="font-size:12px;color:var(--muted)">Bestand: ${einheitIcon(p)}${p.kaesten} · Minimum: ${p.minBestand} ${einheitLabel(p,true)}</div></div>
         <div style="display:flex;flex-direction:column;gap:5px;flex-shrink:0">
           <button class="btn btn-surface btn-sm" style="font-size:11px;padding:5px 8px"
             data-action="lager" data-id="${id}">📦 Lager</button>
@@ -2080,7 +2083,7 @@ window.renderDashboard = function() {
     ? top.map(([name,val])=>`<div class="dash-top-item">
         <div style="font-size:13px;font-weight:600;min-width:120px;flex:1">${name}</div>
         <div class="dash-bar-wrap"><div class="dash-bar" style="width:${Math.round(val/maxVal*100)}%"></div></div>
-        <div style="font-size:13px;font-weight:700;min-width:40px;text-align:right">${val} Kst</div>
+        <div style="font-size:13px;font-weight:700;min-width:40px;text-align:right">${val} ${einheitLabel(products[id]||{},true)}</div>
       </div>`).join('')
     : '<div class="empty"><div class="ei">📊</div><p>Noch keine Buchungen in den letzten 30 Tagen.</p></div>';
 };
