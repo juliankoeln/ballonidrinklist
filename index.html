@@ -448,10 +448,7 @@ select.fi2{appearance:none}
     <button class="btn btn-blue" onclick="openCamera()" title="Kamera-Scanner">📷</button>
     <button class="btn btn-accent" onclick="doScan()">✓</button>
   </div>
-  <button onclick="document.getElementById('bIn').focus()" 
-    style="width:100%;padding:10px;margin-bottom:8px;background:var(--accent);color:#fff;border:none;border-radius:var(--r);font-size:14px;font-weight:700;cursor:pointer;letter-spacing:1px">
-    🔫 SCANNER AKTIVIEREN
-  </button>
+
 
   <div class="qty-grid">
     <div class="qty-block">
@@ -538,9 +535,11 @@ select.fi2{appearance:none}
   <!-- INVENTUR VIEW -->
   <div class="view" id="vInventur">
     <div class="sec-title">Inventur <span class="badge" id="invCt">0 Artikel</span></div>
-    <p style="font-size:12px;color:#888;margin-bottom:12px">Scanne oder wähle ein Produkt und trage den <strong>tatsächlichen Bestand</strong> ein. Der Wert wird direkt überschrieben.</p>
-    <!-- Unsichtbares Feld für Laser-Scanner -->
-
+    <p style="font-size:12px;color:#888;margin-bottom:8px">Scanne einen Artikel oder tippe den Namen ins Suchfeld. Bestand ändern → Speichern → nächster Artikel.</p>
+    <input type="text" id="invScanIn" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+      inputmode="text"
+      placeholder="🔍 Scannen oder Artikel suchen…"
+      style="width:100%;padding:13px 14px;border:2px solid var(--accent);border-radius:var(--r);font-size:16px;background:var(--surface);color:var(--text);box-sizing:border-box;margin-bottom:12px">
     <div id="invList"></div>
   </div>
 
@@ -726,7 +725,7 @@ select.fi2{appearance:none}
         <strong style="color:var(--text)">Claude</strong> · KI-Assistent von Anthropic
       </p>
       <p style="font-size:11px;color:var(--muted);margin-top:10px;letter-spacing:1px">
-        Version 0.40
+        Version 0.41
       </p>
     </div>
     <button class="btn btn-surface" style="width:100%;margin-top:16px" onclick="document.getElementById('impressumModal').classList.remove('open')">Schließen</button>
@@ -1141,35 +1140,65 @@ window.doArtScan = function() {
   }
 };
 
-// invScanIn Timer
+// invScanIn – filtert Liste per Scan oder Texteingabe
 let invScanTimer = null;
 document.addEventListener('DOMContentLoaded', () => {
   const invEl = document.getElementById('invScanIn');
-  if (invEl) {
-    invEl.addEventListener('keydown',  e => { if(e.key==='Enter'){ clearTimeout(invScanTimer); doInvScan(); } });
-    invEl.addEventListener('keypress', e => { if(e.key==='Enter'){ clearTimeout(invScanTimer); doInvScan(); } });
-    invEl.addEventListener('input', () => {
-      clearTimeout(invScanTimer);
-      if (invEl.value.trim().length >= 4) {
-        invScanTimer = setTimeout(() => { if(invEl.value.trim()) doInvScan(); }, 400);
-      }
-    });
-  }
+  if (!invEl) return;
+  invEl.addEventListener('input', () => {
+    clearTimeout(invScanTimer);
+    const val = invEl.value.trim();
+    if (!val) { renderInventur(); return; }
+    // Sofort filtern bei Texteingabe
+    filterInventur(val);
+    // Bei Barcode (>=4 Zeichen, 400ms Pause): exakte Barcode-Suche
+    if (val.length >= 4) {
+      invScanTimer = setTimeout(() => {
+        const byBarcode = Object.entries(products).find(([,p])=>p.barcode===val);
+        if (byBarcode) {
+          filterInventur(val, byBarcode[0]);
+        }
+      }, 400);
+    }
+  });
+  invEl.addEventListener('keydown',  e => { if(e.key==='Enter'){ clearTimeout(invScanTimer); doInvScan(); } });
+  invEl.addEventListener('keypress', e => { if(e.key==='Enter'){ clearTimeout(invScanTimer); doInvScan(); } });
 });
 
 window.doInvScan = function() {
   const el = document.getElementById('invScanIn');
-  const code = el.value.trim();
-  el.value = '';
-  setTimeout(() => el.focus(), 100);
-  if (!code) return;
-  const entry = Object.entries(products).find(([,p])=>p.barcode===code);
-  if (entry) {
-    openAdd(entry[0]);
-    toast('✏️ ' + entry[1].name + ' – Bearbeiten', 'i');
+  const val = el.value.trim();
+  if (!val) return;
+  const byBarcode = Object.entries(products).find(([,p])=>p.barcode===val);
+  if (byBarcode) {
+    filterInventur(val, byBarcode[0]);
   } else {
-    toast('Barcode unbekannt', 'e');
+    filterInventur(val);
   }
+};
+
+window.filterInventur = function(q, exactId) {
+  const ql = q.toLowerCase();
+  const arr = Object.entries(products).map(([id,p])=>({id,...p}))
+    .filter(p => exactId ? p.id===exactId : 
+      p.name?.toLowerCase().includes(ql) || (p.barcode||'').includes(q))
+    .sort((a,b)=>a.name.localeCompare(b.name));
+  document.getElementById('invCt').textContent = arr.length + ' Artikel';
+  const el = document.getElementById('invList');
+  if (!arr.length) { el.innerHTML = '<div class="empty"><div class="ei">🔍</div><p>Kein Artikel gefunden.</p></div>'; return; }
+  el.innerHTML = arr.map(p => `
+    <div class="inv-card" id="inv_${p.id}">
+      <div class="inv-top">
+        <div style="font-size:22px">${catIcons[p.kategorie]||'📦'}</div>
+        <div style="flex:1"><div class="inv-name">${p.name}</div><div class="inv-bar">${p.barcode||'–'}</div></div>
+        <div style="text-align:right;font-size:12px;color:#888">Ist: <b>${einheitIcon(p)}${p.kaesten} / ${p.flaschen}Fl</b></div>
+      </div>
+      <div class="inv-row">
+        <div class="inv-field"><label>${einheitLabel(p)}</label><input class="inv-in" type="number" id="ik_${p.id}" value="${p.kaesten}" min="0"></div>
+        <div class="inv-field"><label>Flaschen</label><input class="inv-in" type="number" id="if_${p.id}" value="${p.flaschen}" min="0"></div>
+      </div>
+      <button class="inv-save" id="isv_${p.id}" onclick="saveInvAndClear('${p.id}')">💾 Bestand speichern</button>
+    </div>`).join('');
 };
 
 window.doScan = function() {
@@ -1548,7 +1577,7 @@ window.renderInventur = function() {
         <div class="inv-field"><label>${einheitLabel(p)}</label><input class="inv-in" type="number" id="ik_${p.id}" value="${p.kaesten}" min="0"></div>
         <div class="inv-field"><label>Flaschen</label><input class="inv-in" type="number" id="if_${p.id}" value="${p.flaschen}" min="0"></div>
       </div>
-      <button class="inv-save" id="isv_${p.id}" onclick="saveInv('${p.id}')">💾 Bestand speichern</button>
+      <button class="inv-save" id="isv_${p.id}" onclick="saveInvAndClear('${p.id}')">💾 Bestand speichern</button>
     </div>`).join('');
 };
 
@@ -1557,11 +1586,15 @@ window.saveInv = async function(id) {
   const f = parseInt(document.getElementById('if_'+id).value)||0;
   await fbUpdate(`products/${id}`, { kaesten: k, flaschen: f });
   await fbPush('history', { pn:products[id].name, dK:0, dF:0, nK:k, nF:f, dir:'inv', ts:new Date().toISOString(), user:currentUser?.kuerzel||'?' });
-  const btn = document.getElementById('isv_'+id);
-  btn.textContent = '✅ Gespeichert';
-  btn.classList.add('inv-saved');
-  setTimeout(() => { btn.textContent = '💾 Bestand speichern'; btn.classList.remove('inv-saved'); }, 2000);
   toast('✅ ' + products[id].name + ' aktualisiert', 's');
+};
+
+window.saveInvAndClear = async function(id) {
+  await saveInv(id);
+  // Suchfeld leeren → alle Artikel wieder anzeigen
+  const invEl = document.getElementById('invScanIn');
+  if (invEl) { invEl.value = ''; }
+  renderInventur();
 };
 
 // Inventur per Scan: wenn Inventur-Tab aktiv → Scan öffnet invModal
