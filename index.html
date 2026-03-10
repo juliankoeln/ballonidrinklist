@@ -440,14 +440,14 @@ select.fi2{appearance:none}
   </div>
 
   <div class="scan-row">
-    <input type="text" id="bIn" class="scan-in" placeholder="Barcode scannen / eingeben…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+    <input type="text" id="bIn" class="scan-in" placeholder="🔫 Hier tippen dann scannen…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" readonly onfocus="this.removeAttribute('readonly')">
     <button class="btn btn-blue" onclick="openCamera()" title="Kamera-Scanner">📷</button>
     <button class="btn btn-accent" onclick="doScan()">✓</button>
   </div>
 
   <div class="qty-grid">
     <div class="qty-block">
-      <label id="qKLabel">📦 Kästen</label>
+      <label id="qKLabel">🧺 Kästen</label>
       <div class="qty-row">
         <button class="qbtn m" onclick="dq('k',-1)">−</button>
         <input type="number" id="qK" class="qty-in" value="1" min="0">
@@ -532,10 +532,7 @@ select.fi2{appearance:none}
     <div class="sec-title">Inventur <span class="badge" id="invCt">0 Artikel</span></div>
     <p style="font-size:12px;color:#888;margin-bottom:12px">Scanne oder wähle ein Produkt und trage den <strong>tatsächlichen Bestand</strong> ein. Der Wert wird direkt überschrieben.</p>
     <!-- Unsichtbares Feld für Laser-Scanner -->
-    <input type="text" id="invScanIn" autocomplete="off"
-      autocorrect="off" autocapitalize="off" spellcheck="false"
-      style="position:absolute;opacity:0;pointer-events:none;width:1px;height:1px;font-size:16px"
-      onkeydown="if(event.key==='Enter')doInvScan()">
+
     <div id="invList"></div>
   </div>
 
@@ -652,7 +649,7 @@ select.fi2{appearance:none}
     <div class="fg" id="einheitRow">
       <label>Einheit / Gebindeart</label>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px" id="einheitBtns">
-        <button type="button" class="einheit-btn active" data-einheit="kasten" onclick="selectEinheit('kasten')">📦<br><span>Kasten</span></button>
+        <button type="button" class="einheit-btn active" data-einheit="kasten" onclick="selectEinheit('kasten')">🧺<br><span>Kasten</span></button>
         <button type="button" class="einheit-btn" data-einheit="fass" onclick="selectEinheit('fass')">🛢️<br><span>Fass</span></button>
         <button type="button" class="einheit-btn" data-einheit="karton" onclick="selectEinheit('karton')">🗃️<br><span>Karton</span></button>
       </div>
@@ -721,7 +718,7 @@ select.fi2{appearance:none}
         <strong style="color:var(--text)">Claude</strong> · KI-Assistent von Anthropic
       </p>
       <p style="font-size:11px;color:var(--muted);margin-top:10px;letter-spacing:1px">
-        Version 0.37
+        Version 0.38
       </p>
     </div>
     <button class="btn btn-surface" style="width:100%;margin-top:16px" onclick="document.getElementById('impressumModal').classList.remove('open')">Schließen</button>
@@ -853,7 +850,7 @@ function einheitLabel(p, short=false) {
 function einheitIcon(p) {
   if (p.einheit==='fass')   return '🛢️';
   if (p.einheit==='karton') return '🗃️';
-  return '📦';
+  return '🧺';
 }
 
 
@@ -1109,9 +1106,7 @@ document.addEventListener('click', e => {
   // Nur wenn kein Input bereits fokussiert ist
   const focused = document.activeElement;
   if (focused && (focused.tagName === 'INPUT' || focused.tagName === 'TEXTAREA' || focused.tagName === 'SELECT')) return;
-  if (activView.id === 'vLager')    { setTimeout(()=>{ if(!document.getElementById('searchIn')?.dataset.active && document.activeElement?.id!=='searchIn') bIn.focus(); },80); }
-  if (activView.id === 'vInventur') { setTimeout(()=>{ if(document.activeElement?.tagName!=='INPUT') document.getElementById('invScanIn')?.focus(); },80); }
-  if (activView.id === 'vArtikel')  { setTimeout(()=>{ if(document.activeElement?.tagName!=='INPUT') document.getElementById('artScanIn')?.focus(); },80); }
+  // Kein auto-focus – Android würde sonst Tastatur öffnen
 });
 
 window.doArtScan = function() {
@@ -1207,7 +1202,6 @@ window.clearFoundCard = function() {
   document.getElementById('searchIn').value = '';
   renderList();
   bIn.value = '';
-  bIn.focus();
 };
 
 window.selProd = function(id) {
@@ -1456,8 +1450,8 @@ window.switchView = function(v) {
   document.querySelector('.fab').style.display = (v==='History'||v==='Bestellung'||v==='Inventur'||v==='Dashboard')?'none':'flex';
   document.getElementById('scanStrip').style.display = showScan?'block':'none';
   document.querySelector('.fab').style.display = (v==='History'||v==='Bestellung'||v==='Inventur')?'none':'flex';
-  if (v==='Artikel') { renderArtikel(); setTimeout(()=>document.getElementById('artScanIn')?.focus(),150); }
-  if (v==='Inventur') { renderInventur(); setTimeout(()=>document.getElementById('invScanIn')?.focus(),150); }
+  if (v==='Artikel') { renderArtikel(); }
+  if (v==='Inventur') { renderInventur(); }
   if (v==='Bestellung') renderBestellung();
   if (v==='Dashboard') renderDashboard();
   if (v==='History') renderHistory();
@@ -2069,7 +2063,6 @@ function startApp() {
 
   initFirebase();
   syncOfflineQueue(); // Ausstehende Offline-Buchungen sync
-  bIn.focus();
   // Apply saved theme icon
   const t = localStorage.getItem('balloni_theme') || 'light';
   const db2 = document.getElementById('darkBtn');
