@@ -6,6 +6,25 @@
 <title>🍺 Getränke Lager</title>
 
 <!-- Firebase -->
+
+<script>
+// ── SERVICE WORKER ────────────────────────────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js')
+    .then(reg => console.log('SW registriert'))
+    .catch(e => console.warn('SW Fehler:', e));
+}
+// Online/Offline Events
+window.addEventListener('online', () => {
+  document.getElementById('syncDot')?.classList.remove('offline-mode');
+  if (typeof syncOfflineQueue === 'function') syncOfflineQueue();
+});
+window.addEventListener('offline', () => {
+  document.getElementById('syncDot')?.classList.add('offline-mode');
+  if (typeof toast === 'function') toast('📵 Offline – Buchungen werden zwischengespeichert', 'e');
+});
+</script>
+
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getDatabase, ref, set, onValue, push, remove, update }
@@ -120,6 +139,8 @@ header{background:#fff;border-bottom:2px solid #1a1a1a;padding:8px 14px;flex-shr
 .sync-dot{width:8px;height:8px;border-radius:50%;background:var(--muted2);flex-shrink:0}
 .sync-dot.ok{background:var(--green);box-shadow:0 0 5px rgba(26,122,74,.4)}
 .sync-dot.err{background:var(--red)}
+.sync-dot.offline-mode{background:#f59e0b;box-shadow:0 0 5px rgba(245,158,11,.5);animation:pulse 1.5s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 
 /* SCANNER STRIP */
 #scanStrip{background:var(--surface);border-bottom:1px solid var(--border);padding:8px 12px;flex-shrink:0;overflow-y:auto;max-height:52vh}
@@ -275,7 +296,7 @@ select.fi2{appearance:none}
 .login-err{color:#c0392b;font-size:13px;margin-top:10px;text-align:center;min-height:20px}
 
 /* DASHBOARD */
-.dash-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:4px}
+.dash-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:4px}
 .dash-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px 14px;box-shadow:var(--shadow);text-align:center}
 .dash-val{font-family:"Bebas Neue",sans-serif;font-size:38px;letter-spacing:2px;color:var(--text);line-height:1}
 .dash-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-top:4px}
@@ -283,6 +304,13 @@ select.fi2{appearance:none}
 .dash-top-item{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:10px 14px;margin-bottom:6px;display:flex;align-items:center;gap:10px}
 .dash-bar-wrap{flex:1;background:var(--bg);border-radius:4px;height:8px;overflow:hidden}
 .dash-bar{height:8px;background:#1a1a1a;border-radius:4px;transition:width .4s}
+
+/* EINHEIT BUTTONS */
+.einheit-btn{border:2px solid var(--border);background:var(--surface);border-radius:var(--r);padding:10px 6px;font-size:18px;text-align:center;cursor:pointer;transition:all .15s;font-family:'DM Sans',sans-serif;color:var(--text);line-height:1.4}
+.einheit-btn span{display:block;font-size:11px;font-weight:600;margin-top:3px;text-transform:uppercase;letter-spacing:.5px}
+.einheit-btn.active{border-color:var(--accent);background:var(--accent);color:var(--bg)}
+[data-theme="dark"] .einheit-btn{background:var(--surface);border-color:var(--border);color:var(--text)}
+[data-theme="dark"] .einheit-btn.active{background:var(--text);color:var(--bg);border-color:var(--text)}
 
 /* INVENTUR */
 .inv-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:12px;margin-bottom:8px;box-shadow:var(--shadow)}
@@ -353,6 +381,9 @@ select.fi2{appearance:none}
     <div id="userList" style="margin-bottom:14px"></div>
     <div style="border-top:1px solid var(--border);padding-top:14px;margin-top:4px">
       <div style="font-size:12px;font-weight:600;margin-bottom:10px;color:#888;text-transform:uppercase;letter-spacing:1px">Neuer Benutzer</div>
+      <div class="fg"><label>Vollständiger Name</label>
+        <input type="text" class="fi2" id="newUserName" placeholder="z.B. Julian Goßmann"
+          autocomplete="off" autocorrect="off" spellcheck="false"></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
         <div class="fg"><label>Kürzel (3 Buchst.)</label>
           <input type="text" class="fi2" id="newUserK" maxlength="3" placeholder="MAX"
@@ -409,7 +440,7 @@ select.fi2{appearance:none}
   </div>
 
   <div class="scan-row">
-    <input type="text" id="bIn" class="scan-in" placeholder="Barcode scannen / eingeben…" inputmode="numeric" autocomplete="off">
+    <input type="text" id="bIn" class="scan-in" placeholder="Barcode scannen / eingeben…" inputmode="none" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
     <button class="btn btn-blue" onclick="openCamera()" title="Kamera-Scanner">📷</button>
     <button class="btn btn-accent" onclick="doScan()">✓</button>
   </div>
@@ -501,7 +532,8 @@ select.fi2{appearance:none}
     <div class="sec-title">Inventur <span class="badge" id="invCt">0 Artikel</span></div>
     <p style="font-size:12px;color:#888;margin-bottom:12px">Scanne oder wähle ein Produkt und trage den <strong>tatsächlichen Bestand</strong> ein. Der Wert wird direkt überschrieben.</p>
     <!-- Unsichtbares Feld für Laser-Scanner -->
-    <input type="text" id="invScanIn" inputmode="numeric" autocomplete="off"
+    <input type="text" id="invScanIn" inputmode="none" autocomplete="off"
+      autocorrect="off" autocapitalize="off" spellcheck="false"
       style="position:absolute;opacity:0;pointer-events:none;width:0;height:0"
       onkeydown="if(event.key==='Enter')doInvScan()">
     <div id="invList"></div>
@@ -611,10 +643,19 @@ select.fi2{appearance:none}
         <option value="Sekt">🥂 Sekt</option><option value="Sonstiges">📦 Sonstiges</option>
       </select>
     </div>
-    <div class="fg"><label>Flaschen pro Kasten</label><input type="number" id="fPK" class="fi2" value="24" min="1"></div>
-    <div class="fg"><label>Anfangsbestand Kästen</label><input type="number" id="fK0" class="fi2" value="0" min="0"></div>
+    <!-- Einheitenauswahl – nur bei neuem Artikel sichtbar -->
+    <div class="fg" id="einheitRow">
+      <label>Einheit / Gebindeart</label>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px" id="einheitBtns">
+        <button type="button" class="einheit-btn active" data-einheit="kasten" onclick="selectEinheit('kasten')">📦<br><span>Kasten</span></button>
+        <button type="button" class="einheit-btn" data-einheit="fass" onclick="selectEinheit('fass')">🛢️<br><span>Fass</span></button>
+        <button type="button" class="einheit-btn" data-einheit="karton" onclick="selectEinheit('karton')">🗃️<br><span>Karton</span></button>
+      </div>
+    </div>
+    <div class="fg" id="fPKrow"><label id="fPKlabel">Flaschen pro Kasten</label><input type="number" id="fPK" class="fi2" value="24" min="1"></div>
+    <div class="fg"><label id="fK0label">Anfangsbestand Kästen</label><input type="number" id="fK0" class="fi2" value="0" min="0"></div>
     <div class="fg"><label>Anfangsbestand Flaschen (lose)</label><input type="number" id="fF0" class="fi2" value="0" min="0"></div>
-    <div class="fg"><label>Mindestbestand Kästen (Alarm)</label><input type="number" id="fMn" class="fi2" value="1" min="0"></div>
+    <div class="fg"><label id="fMnLabel">Mindestbestand Kästen (Alarm)</label><input type="number" id="fMn" class="fi2" value="1" min="0"></div>
     <div class="mbtns">
       <button class="btn btn-accent" style="flex:1" onclick="saveProduct()">💾 Speichern</button>
       <button class="btn btn-surface" onclick="closeAdd()">Abbrechen</button>
@@ -675,7 +716,7 @@ select.fi2{appearance:none}
         <strong style="color:var(--text)">Claude</strong> · KI-Assistent von Anthropic
       </p>
       <p style="font-size:11px;color:var(--muted);margin-top:10px;letter-spacing:1px">
-        Version 0.32
+        Version 0.35
       </p>
     </div>
     <button class="btn btn-surface" style="width:100%;margin-top:16px" onclick="document.getElementById('impressumModal').classList.remove('open')">Schließen</button>
@@ -735,25 +776,63 @@ async function fbSet(path, data) {
   }
 }
 
+
+// ── OFFLINE QUEUE ─────────────────────────────────────────────────────────────
+let offlineQueue = [];
+try { offlineQueue = JSON.parse(localStorage.getItem('balloni_queue') || '[]'); } catch(e){}
+
+function saveQueue() {
+  localStorage.setItem('balloni_queue', JSON.stringify(offlineQueue));
+}
+
+function queueOp(type, path, data) {
+  offlineQueue.push({ type, path, data, ts: Date.now() });
+  saveQueue();
+}
+
+async function syncOfflineQueue() {
+  if (!offlineQueue.length || !connected) return;
+  const q = [...offlineQueue];
+  offlineQueue = [];
+  saveQueue();
+  let synced = 0;
+  for (const op of q) {
+    try {
+      if (op.type === 'push')   await push(ref(db, op.path), op.data);
+      if (op.type === 'update') await update(ref(db, op.path), op.data);
+      if (op.type === 'set')    await set(ref(db, op.path), op.data);
+      synced++;
+    } catch(e) {
+      offlineQueue.push(op); // zurück in Queue bei Fehler
+    }
+  }
+  saveQueue();
+  if (synced > 0) toast(`☁️ ${synced} Buchung${synced>1?'en':''} synchronisiert`, 's');
+}
+
 async function fbPush(path, data) {
-  if (connected) {
+  if (connected && navigator.onLine) {
     await push(ref(db, path), data);
   } else {
+    // Offline: lokal speichern + in Queue
     const key = Date.now().toString();
     if (path === 'history') { history[key] = data; localStorage.setItem('lager_h', JSON.stringify(history)); renderHistory(); }
+    queueOp('push', path, data);
   }
 }
 
 async function fbUpdate(path, data) {
-  if (connected) await update(ref(db, path), data);
-  else {
-    // merge locally
+  if (connected && navigator.onLine) {
+    await update(ref(db, path), data);
+  } else {
+    // Offline: lokal speichern + in Queue
     if (path.startsWith('products/')) {
       const id = path.split('/')[1];
       products[id] = { ...products[id], ...data };
       localStorage.setItem('lager_p', JSON.stringify(products));
       render();
     }
+    queueOp('update', path, data);
   }
 }
 
@@ -802,7 +881,7 @@ function renderList() {
         <span class="ptag">${p.kategorie||'Sonstiges'}</span>
       </div>
       <div class="pstock">
-        <div class="sk">${p.kaesten} <span style="font-size:12px;color:var(--muted)">Kst</span></div>
+        <div class="sk">${p.kaesten} <span style="font-size:12px;color:var(--muted)">${p.einheit==='fass'?'Fass':p.einheit==='karton'?'Krt':'Kst'}</span></div>
         <div class="sf">${p.flaschen} lose</div>
         ${low?'<div class="slow">⚠️ Nachbestellen</div>':''}
       </div>
@@ -872,6 +951,22 @@ window.showDashPopup = function(type) {
         <span style="font-size:18px">${catIcons[p.kategorie]||'📦'}</span>
         <div style="flex:1;font-size:13px;font-weight:600">${p.name}</div>
         <div style="font-size:13px;font-weight:700;color:var(--blue)">${p.flaschen} Fl</div>
+      </div>`);
+  } else if (type === 'fass') {
+    title = '🛢️ Fässer';
+    items = prods.filter(p=>p.einheit==='fass').sort((a,b)=>b.kaesten-a.kaesten)
+      .map(p=>`<div class="dash-top-item">
+        <span style="font-size:18px">${catIcons[p.kategorie]||'📦'}</span>
+        <div style="flex:1;font-size:13px;font-weight:600">${p.name}</div>
+        <div style="font-size:13px;font-weight:700">🛢️ ${p.kaesten}</div>
+      </div>`);
+  } else if (type === 'karton') {
+    title = '🗃️ Kartons';
+    items = prods.filter(p=>p.einheit==='karton').sort((a,b)=>b.kaesten-a.kaesten)
+      .map(p=>`<div class="dash-top-item">
+        <span style="font-size:18px">${catIcons[p.kategorie]||'📦'}</span>
+        <div style="flex:1;font-size:13px;font-weight:600">${p.name}</div>
+        <div style="font-size:13px;font-weight:700">🗃️ ${p.kaesten}</div>
       </div>`);
   } else if (type === 'alarm') {
     title = '⚠️ Mindestbestand unterschritten';
@@ -1072,6 +1167,18 @@ window.applyChange = async function(dir) {
   if (nK < (p.minBestand||0)) setTimeout(()=>toast(`⚠️ ${p.name}: Mindestbestand!`,'e'),1400);
 };
 
+window.selectEinheit = function(e) {
+  document.querySelectorAll('.einheit-btn').forEach(b => b.classList.toggle('active', b.dataset.einheit===e));
+  const labels = { kasten:['Anfangsbestand Kästen','Mindestbestand Kästen (Alarm)','block','Flaschen pro Kasten'],
+                   fass:  ['Anfangsbestand Fässer','Mindestbestand Fässer (Alarm)','none','Flaschen pro Kasten'],
+                   karton:['Anfangsbestand Kartons','Mindestbestand Kartons (Alarm)','block','Flaschen pro Karton'] };
+  const [k0lbl, mnlbl, pkvis, pklbl] = labels[e] || labels.kasten;
+  document.getElementById('fK0label').textContent = k0lbl;
+  document.getElementById('fMnLabel').textContent = mnlbl;
+  document.getElementById('fPKrow').style.display = pkvis;
+  document.getElementById('fPKlabel').textContent = pklbl;
+};
+
 window.clearFoundCard = function() {
   currentId = null;
   document.getElementById('foundCard').classList.remove('show');
@@ -1105,16 +1212,21 @@ window.openAdd = function(id, prefillBarcode) {
     document.getElementById('fK0').value  = p.kaesten;
     document.getElementById('fF0').value  = p.flaschen;
     document.getElementById('fMn').value  = p.minBestand||1;
+    // Einheitenauswahl beim Bearbeiten ausblenden
+    document.getElementById('einheitRow').style.display = 'none';
+    document.getElementById('fK0label').textContent = 'Kästen / Fässer / Kartons';
   } else {
     document.getElementById('mTitle').textContent = '➕ Neues Produkt';
     document.getElementById('fNm').value  = '';
-    // Barcode aus Scan vorausfüllen – NICHT überschreiben wenn schon gesetzt
     document.getElementById('fBc').value  = prefillBarcode || '';
     document.getElementById('fKat').value = 'Sonstiges';
     document.getElementById('fPK').value  = 24;
     document.getElementById('fK0').value  = 0;
     document.getElementById('fF0').value  = 0;
     document.getElementById('fMn').value  = 1;
+    // Einheitenauswahl bei neuem Artikel einblenden, Kasten als Standard
+    document.getElementById('einheitRow').style.display = 'block';
+    selectEinheit('kasten');
   }
   document.getElementById('addModal').classList.add('open');
   // Fokus auf Produktname setzen damit man direkt tippen kann
@@ -1132,6 +1244,8 @@ window.saveProduct = async function() {
     const dup = Object.entries(products).find(([pid,p])=>p.barcode===bc && pid!==id);
     if (dup) { toast('Barcode schon vergeben: '+dup[1].name,'e'); return; }
   }
+  const einheit = document.querySelector('.einheit-btn.active')?.dataset.einheit || 'kasten';
+  const isNew = !id;
   const data = {
     name, barcode:bc,
     kategorie: document.getElementById('fKat').value,
@@ -1139,6 +1253,7 @@ window.saveProduct = async function() {
     kaesten:    parseInt(document.getElementById('fK0').value)||0,
     flaschen:   parseInt(document.getElementById('fF0').value)||0,
     minBestand: parseInt(document.getElementById('fMn').value)||0,
+    einheit:    isNew ? einheit : (products[id]?.einheit || 'kasten'),
   };
   const key = id || Date.now().toString();
   await fbUpdate(`products/${key}`, data);
@@ -1723,10 +1838,13 @@ function renderUserList() {
   appUsers = getUsers();
   const el = document.getElementById('userList');
   el.innerHTML = Object.entries(appUsers).map(([k,u]) => `
-    <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
-      <div style="background:#1a1a1a;color:#fff;border-radius:20px;padding:3px 12px;font-weight:700;font-size:13px;letter-spacing:2px">${k}</div>
-      <div style="flex:1;font-size:13px;color:#888">${u.role==='admin'?'⭐ Admin':'Mitarbeiter'}</div>
-      ${k==='ADM'?'<span style="font-size:11px;color:#bbb">System</span>':`<button onclick="deleteUser('${k}')" style="background:#fdecea;color:var(--red);border:1px solid #f5c6c3;border-radius:8px;padding:4px 10px;font-size:12px;cursor:pointer">Löschen</button>`}
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">
+      <div style="background:#1a1a1a;color:#fff;border-radius:20px;padding:3px 12px;font-weight:700;font-size:13px;letter-spacing:2px;flex-shrink:0">${k}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:600;color:var(--text)">${u.name||'<span style="color:var(--muted);font-style:italic">kein Name</span>'}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:1px">${u.role==='admin'?'⭐ Admin':'Mitarbeiter'}</div>
+      </div>
+      ${k==='ADM'?'<span style="font-size:11px;color:#bbb">System</span>':`<button onclick="deleteUser('${k}')" style="background:#fdecea;color:var(--red);border:1px solid #f5c6c3;border-radius:8px;padding:4px 10px;font-size:12px;cursor:pointer;flex-shrink:0">Löschen</button>`}
     </div>`).join('');
 }
 
@@ -1734,16 +1852,18 @@ window.createUser = function() {
   const k    = document.getElementById('newUserK').value.trim().toUpperCase();
   const pin  = document.getElementById('newUserP').value.trim();
   const role = document.getElementById('newUserRole').value;
-  if (k.length !== 3)        { toast('Kürzel muss genau 3 Buchstaben sein', 'e'); return; }
+  const name = document.getElementById('newUserName').value.trim();
+  if (k.length !== 3)            { toast('Kürzel muss genau 3 Buchstaben sein', 'e'); return; }
   if (!/^[0-9]{4,8}$/.test(pin)) { toast('PIN muss 4–8 Ziffern sein', 'e'); return; }
   appUsers = getUsers();
-  if (appUsers[k])           { toast('Kürzel "'+k+'" bereits vergeben', 'e'); return; }
-  appUsers[k] = { pin, role };
+  if (appUsers[k])               { toast('Kürzel "'+k+'" bereits vergeben', 'e'); return; }
+  appUsers[k] = { pin, role, name };
   saveUsers(appUsers);
-  document.getElementById('newUserK').value = '';
-  document.getElementById('newUserP').value = '';
+  document.getElementById('newUserK').value   = '';
+  document.getElementById('newUserP').value   = '';
+  document.getElementById('newUserName').value = '';
   renderUserList();
-  toast('✅ Benutzer ' + k + ' angelegt', 's');
+  toast('✅ Benutzer ' + k + (name?' ('+name+')':'') + ' angelegt', 's');
 };
 
 window.deleteUser = function(k) {
@@ -1797,14 +1917,18 @@ window.renderDashboard = function() {
 
   // Stats
   const totalProds  = prods.length;
-  const totalKasten = prods.reduce((s,p)=>s+(p.kaesten||0),0);
+  const totalKasten = prods.filter(p=>!p.einheit||p.einheit==='kasten').reduce((s,p)=>s+(p.kaesten||0),0);
   const totalFl     = prods.reduce((s,p)=>s+(p.flaschen||0),0);
+  const totalFass   = prods.filter(p=>p.einheit==='fass').reduce((s,p)=>s+(p.kaesten||0),0);
+  const totalKarton = prods.filter(p=>p.einheit==='karton').reduce((s,p)=>s+(p.kaesten||0),0);
   const alarmCount  = prods.filter(p=>p.kaesten<(p.minBestand||0)).length;
 
   document.getElementById('dashGrid').innerHTML = `
     <div class="dash-card" onclick="showDashPopup('alle')" style="cursor:pointer"><div class="dash-val">${totalProds}</div><div class="dash-label">Artikel</div></div>
     <div class="dash-card" onclick="showDashPopup('kaesten')" style="cursor:pointer"><div class="dash-val">${totalKasten}</div><div class="dash-label">Kästen gesamt</div></div>
     <div class="dash-card" onclick="showDashPopup('flaschen')" style="cursor:pointer"><div class="dash-val">${totalFl}</div><div class="dash-label">Lose Flaschen</div></div>
+    <div class="dash-card" onclick="showDashPopup('fass')" style="cursor:pointer"><div class="dash-val">${totalFass}</div><div class="dash-label">🛢️ Fässer</div></div>
+    <div class="dash-card" onclick="showDashPopup('karton')" style="cursor:pointer"><div class="dash-val">${totalKarton}</div><div class="dash-label">🗃️ Kartons</div></div>
     <div class="dash-card" onclick="showDashPopup('alarm')" style="cursor:pointer;${alarmCount>0?'border-color:var(--red);background:#fdecea':''}">
       <div class="dash-val" style="${alarmCount>0?'color:var(--red)':''}">${alarmCount}</div>
       <div class="dash-label">⚠️ Alarme</div>
@@ -1914,6 +2038,7 @@ function startApp() {
   searchInEl.addEventListener('input', renderList);
 
   initFirebase();
+  syncOfflineQueue(); // Ausstehende Offline-Buchungen sync
   bIn.focus();
   // Apply saved theme icon
   const t = localStorage.getItem('balloni_theme') || 'light';
