@@ -658,7 +658,10 @@ select.fi2{appearance:none}
     <h2 id="mTitle">Neues Produkt</h2>
     <input type="hidden" id="eId">
     <div class="fg"><label>Produktname *</label><input type="text" id="fNm" class="fi2" placeholder="z.B. Coca Cola 0,33L"></div>
-    <div class="fg"><label>Marke / Hersteller</label><input type="text" id="fMarke" class="fi2" placeholder="z.B. Coca Cola, Bitburger…" autocomplete="off"></div>
+    <div class="fg"><label>Marke / Hersteller</label>
+      <input type="text" id="fMarke" class="fi2" placeholder="z.B. Coca Cola, Bitburger…" autocomplete="off" list="markenList">
+      <datalist id="markenList"></datalist>
+    </div>
     <div class="fg"><label>Barcode (EAN)</label><input type="text" id="fBc" class="fi2" placeholder="z.B. 4000177000036" inputmode="numeric"></div>
     <div class="fg"><label>Kategorie</label>
       <select id="fKat" class="fi2">
@@ -1435,7 +1438,9 @@ window.openAdd = function(id, prefillBarcode) {
     selectEinheit('kasten');
   }
   document.getElementById('addModal').classList.add('open');
-  // Fokus auf Produktname setzen damit man direkt tippen kann
+  // Marken-Vorschläge aus bestehenden Produkten befüllen
+  const marken = [...new Set(Object.values(products).map(p=>p.marke).filter(Boolean))].sort();
+  document.getElementById('markenList').innerHTML = marken.map(m=>`<option value="${m}">`).join('');
   setTimeout(() => document.getElementById('fNm').focus(), 200);
 };
 
