@@ -665,7 +665,8 @@ select.fi2{appearance:none}
         oninput="filterMarkenDropdown(this.value)"
         onfocus="showMarkenDropdown(this.value)"
         onblur="setTimeout(()=>document.getElementById('markenDropdown').style.display='none',200)">
-      <div id="markenDropdown" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:999;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);box-shadow:0 4px 16px rgba(0,0,0,.15);max-height:180px;overflow-y:auto"></div>
+      <div id="markenDropdown" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:999;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);box-shadow:0 4px 16px rgba(0,0,0,.15);max-height:180px;overflow-y:auto"
+        ontouchstart="event.stopPropagation()"></div>
     </div>
     <div class="fg"><label>Barcode (EAN)</label><input type="text" id="fBc" class="fi2" placeholder="z.B. 4000177000036" inputmode="numeric"></div>
     <div class="fg"><label>Kategorie</label>
@@ -1390,13 +1391,22 @@ window.filterMarkenDropdown = function(val) {
   const filtered = all.filter(m => m.toLowerCase().includes(q));
   if (!filtered.length) { dd.style.display='none'; return; }
   dd.innerHTML = filtered.map(m =>
-    `<div onclick="document.getElementById('fMarke').value='${m.replace(/'/g,"\'")}';document.getElementById('markenDropdown').style.display='none'"
-      style="padding:11px 14px;font-size:14px;cursor:pointer;border-bottom:1px solid var(--border)"
-      onmousedown="event.preventDefault()"
-      ontouchstart="document.getElementById('fMarke').value='${m.replace(/'/g,"\'")}';document.getElementById('markenDropdown').style.display='none'"
+    `<div class="marken-opt" data-val="${m.replace(/"/g,'&quot;')}"
+      style="padding:13px 14px;font-size:15px;cursor:pointer;border-bottom:1px solid var(--border)"
     >${m}</div>`
   ).join('');
   dd.style.display = 'block';
+  dd.querySelectorAll('.marken-opt').forEach(el => {
+    const pick = e => {
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+      document.getElementById('fMarke').value = el.dataset.val;
+      dd.style.display = 'none';
+    };
+    el.addEventListener('mousedown',  pick);
+    el.addEventListener('touchstart', pick, { passive: false });
+  });
 };
 
 window.clearFoundCard = function() {
