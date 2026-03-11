@@ -756,7 +756,7 @@ select.fi2{appearance:none}
         <strong style="color:var(--text)">Claude</strong> · KI-Assistent von Anthropic
       </p>
       <p style="font-size:11px;color:var(--muted);margin-top:10px;letter-spacing:1px">
-        Version 0.55
+        Version 0.56
       </p>
     </div>
     <button class="btn btn-surface" style="width:100%;margin-top:16px" onclick="document.getElementById('impressumModal').classList.remove('open')">Schließen</button>
@@ -2210,6 +2210,7 @@ window.renderDashboard = function() {
   const totalKasten = prods.filter(p=>!p.einheit||p.einheit==='kasten').reduce((s,p)=>s+(p.kaesten||0),0);
   const totalFl     = prods.reduce((s,p)=>s+(p.flaschen||0),0);
   const totalFass   = prods.filter(p=>p.einheit==='fass').reduce((s,p)=>s+(p.kaesten||0),0);
+  const totalFassL  = prods.filter(p=>p.einheit==='fass').reduce((s,p)=>s+(p.kaesten||0)*(p.liter||0),0);
   const totalKarton = prods.filter(p=>p.einheit==='karton').reduce((s,p)=>s+(p.kaesten||0),0);
   const alarmCount  = prods.filter(p=>p.kaesten<(p.minBestand||0)).length;
 
@@ -2217,7 +2218,7 @@ window.renderDashboard = function() {
     <div class="dash-card" onclick="showDashPopup('alle')" style="cursor:pointer"><div class="dash-val">${totalProds}</div><div class="dash-label">Artikel</div></div>
     <div class="dash-card" onclick="showDashPopup('kaesten')" style="cursor:pointer"><div class="dash-val">${totalKasten}</div><div class="dash-label">Kästen gesamt</div></div>
     <div class="dash-card" onclick="showDashPopup('flaschen')" style="cursor:pointer"><div class="dash-val">${totalFl}</div><div class="dash-label">Lose Flaschen</div></div>
-    <div class="dash-card" onclick="showDashPopup('fass')" style="cursor:pointer"><div class="dash-val">${totalFass}</div><div class="dash-label">🛢️ Fässer</div></div>
+    <div class="dash-card" onclick="showDashPopup('fass')" style="cursor:pointer"><div class="dash-val">${totalFass}${totalFassL>0?' <span style="font-size:13px;color:var(--muted);font-weight:500">/ '+totalFassL+'L</span>':''}</div><div class="dash-label">🛢️ Fässer</div></div>
     <div class="dash-card" onclick="showDashPopup('karton')" style="cursor:pointer"><div class="dash-val">${totalKarton}</div><div class="dash-label">🗃️ Kartons</div></div>
     <div class="dash-card" onclick="showDashPopup('alarm')" style="cursor:pointer;${alarmCount>0?'border-color:var(--red);background:#fdecea':''}">
       <div class="dash-val" style="${alarmCount>0?'color:var(--red)':''}">${alarmCount}</div>
