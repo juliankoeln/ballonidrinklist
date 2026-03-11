@@ -658,9 +658,14 @@ select.fi2{appearance:none}
     <h2 id="mTitle">Neues Produkt</h2>
     <input type="hidden" id="eId">
     <div class="fg"><label>Produktname *</label><input type="text" id="fNm" class="fi2" placeholder="z.B. Coca Cola 0,33L"></div>
-    <div class="fg"><label>Marke / Hersteller</label>
-      <input type="text" id="fMarke" class="fi2" placeholder="z.B. Coca Cola, Bitburger…" autocomplete="off" list="markenList">
-      <datalist id="markenList"></datalist>
+    <div class="fg" style="position:relative">
+      <label>Marke / Hersteller</label>
+      <input type="text" id="fMarke" class="fi2" placeholder="z.B. Coca Cola, Bitburger…"
+        autocomplete="off" autocorrect="off" spellcheck="false"
+        oninput="filterMarkenDropdown(this.value)"
+        onfocus="showMarkenDropdown(this.value)"
+        onblur="setTimeout(()=>document.getElementById('markenDropdown').style.display='none',200)">
+      <div id="markenDropdown" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:999;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);box-shadow:0 4px 16px rgba(0,0,0,.15);max-height:180px;overflow-y:auto"></div>
     </div>
     <div class="fg"><label>Barcode (EAN)</label><input type="text" id="fBc" class="fi2" placeholder="z.B. 4000177000036" inputmode="numeric"></div>
     <div class="fg"><label>Kategorie</label>
@@ -750,7 +755,7 @@ select.fi2{appearance:none}
         <strong style="color:var(--text)">Claude</strong> · KI-Assistent von Anthropic
       </p>
       <p style="font-size:11px;color:var(--muted);margin-top:10px;letter-spacing:1px">
-        Version 0.48
+        Version 0.49
       </p>
     </div>
     <button class="btn btn-surface" style="width:100%;margin-top:16px" onclick="document.getElementById('impressumModal').classList.remove('open')">Schließen</button>
@@ -1374,6 +1379,26 @@ window.exportExcelSelected = function() {
   toast(`📊 Excel mit ${sorted.length} Artikeln gespeichert`,'s');
 };
 
+window.showMarkenDropdown = function(val) {
+  filterMarkenDropdown(val);
+};
+
+window.filterMarkenDropdown = function(val) {
+  const dd = document.getElementById('markenDropdown');
+  const all = window._allMarken || [];
+  const q = val.toLowerCase();
+  const filtered = all.filter(m => m.toLowerCase().includes(q));
+  if (!filtered.length) { dd.style.display='none'; return; }
+  dd.innerHTML = filtered.map(m =>
+    `<div onclick="document.getElementById('fMarke').value='${m.replace(/'/g,"\'")}';document.getElementById('markenDropdown').style.display='none'"
+      style="padding:11px 14px;font-size:14px;cursor:pointer;border-bottom:1px solid var(--border)"
+      onmousedown="event.preventDefault()"
+      ontouchstart="document.getElementById('fMarke').value='${m.replace(/'/g,"\'")}';document.getElementById('markenDropdown').style.display='none'"
+    >${m}</div>`
+  ).join('');
+  dd.style.display = 'block';
+};
+
 window.clearFoundCard = function() {
   currentId = null;
   document.getElementById('foundCard').classList.remove('show');
@@ -1439,8 +1464,7 @@ window.openAdd = function(id, prefillBarcode) {
   }
   document.getElementById('addModal').classList.add('open');
   // Marken-Vorschläge aus bestehenden Produkten befüllen
-  const marken = [...new Set(Object.values(products).map(p=>p.marke).filter(Boolean))].sort();
-  document.getElementById('markenList').innerHTML = marken.map(m=>`<option value="${m}">`).join('');
+  window._allMarken = [...new Set(Object.values(products).map(p=>p.marke).filter(Boolean))].sort();
   setTimeout(() => document.getElementById('fNm').focus(), 200);
 };
 
