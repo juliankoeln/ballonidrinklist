@@ -756,7 +756,7 @@ select.fi2{appearance:none}
         <strong style="color:var(--text)">Claude</strong> · KI-Assistent von Anthropic
       </p>
       <p style="font-size:11px;color:var(--muted);margin-top:10px;letter-spacing:1px">
-        Version 0.53
+        Version 0.54
       </p>
     </div>
     <button class="btn btn-surface" style="width:100%;margin-top:16px" onclick="document.getElementById('impressumModal').classList.remove('open')">Schließen</button>
@@ -916,7 +916,7 @@ function renderList() {
   const q = (document.getElementById('searchIn').value||'').toLowerCase();
   const arr = Object.entries(products)
     .map(([id,p])=>({id,...p}))
-    .filter(p => p.name?.toLowerCase().includes(q) || (p.barcode||'').includes(q) || (p.kategorie||'').toLowerCase().includes(q));
+    .filter(p => p.name?.toLowerCase().includes(q) || (p.barcode||'').includes(q) || (p.kategorie||'').toLowerCase().includes(q) || (p.marke||'').toLowerCase().includes(q));
 
   document.getElementById('listCt').textContent = arr.length + ' Artikel';
   const el = document.getElementById('prodList');
@@ -1229,7 +1229,7 @@ window.filterInventur = function(q, exactId) {
   const ql = q.toLowerCase();
   const arr = Object.entries(products).map(([id,p])=>({id,...p}))
     .filter(p => exactId ? p.id===exactId : 
-      p.name?.toLowerCase().includes(ql) || (p.barcode||'').includes(q))
+      p.name?.toLowerCase().includes(ql) || (p.barcode||'').includes(q) || (p.marke||'').toLowerCase().includes(ql))
     .sort((a,b)=>a.name.localeCompare(b.name));
   document.getElementById('invCt').textContent = arr.length + ' Artikel';
   const el = document.getElementById('invList');
