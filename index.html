@@ -381,9 +381,11 @@ select.fi2{appearance:none}
   <div class="modal">
     <h2>⚙️ Admin</h2>
     <!-- Tabs -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:16px">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:16px;grid-template-rows:auto auto">
       <button id="adminTab1" onclick="switchAdminTab(1)"
         style="padding:8px;border-radius:var(--r);border:2px solid var(--accent);background:var(--accent);color:#fff;font-weight:700;font-size:13px;cursor:pointer">👥 Benutzer</button>
+      <button id="adminTab3" onclick="switchAdminTab(3)"
+        style="padding:8px;border-radius:var(--r);border:2px solid var(--border);background:var(--surface);color:var(--muted);font-weight:700;font-size:13px;cursor:pointer;grid-column:1/-1">🗓️ Monatsfarben</button>
       <button id="adminTab2" onclick="switchAdminTab(2)"
         style="padding:8px;border-radius:var(--r);border:2px solid var(--border);background:var(--surface);color:var(--muted);font-weight:700;font-size:13px;cursor:pointer">🏷️ Hersteller</button>
     </div>
@@ -418,6 +420,12 @@ select.fi2{appearance:none}
     </div>
     </div> <!-- /adminPanel1 -->
 
+    <!-- TAB 3: Monatsfarben -->
+    <div id="adminPanel3" style="display:none">
+      <p style="font-size:12px;color:#888;margin-bottom:12px">Feste Farbe pro Monat – klebt den Aufkleber auf den Kasten.</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px" id="legendGridAdmin"></div>
+    </div>
+
     <!-- TAB 2: Hersteller -->
     <div id="adminPanel2" style="display:none">
       <p style="font-size:12px;color:#888;margin-bottom:12px">Herstellernamen bearbeiten oder löschen.</p>
@@ -437,6 +445,18 @@ select.fi2{appearance:none}
   </div>
 </div>
 
+
+<!-- LEGENDE MODAL -->
+<div class="overlay" id="legendModal">
+  <div class="modal">
+    <h2>🗓️ Monatsfarben – MHD Legende</h2>
+    <p style="font-size:12px;color:#888;margin-bottom:14px">Jeder Monat hat eine feste Farbe. Klebt den passenden Aufkleber auf den Kasten beim Einlagern.</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px" id="legendGrid"></div>
+    <div class="mbtns">
+      <button class="btn btn-surface" style="flex:1" onclick="document.getElementById('legendModal').classList.remove('open')">Schließen</button>
+    </div>
+  </div>
+</div>
 <!-- HEADER -->
 <header>
   <div style="flex:1"><span style="font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:2px;color:#1a1a1a">Balloni</span> <span style="font-size:13px;font-weight:500;color:#888;letter-spacing:1px">Getränkeliste</span></div>
@@ -496,9 +516,15 @@ select.fi2{appearance:none}
       </div>
     </div>
   </div>
+  <!-- MHD Feld – nur bei Eingang relevant -->
+  <div id="mhdRow" style="display:none;margin-bottom:8px;padding:10px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r)">
+    <div style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">📅 MHD dieser Lieferung (optional)</div>
+    <input type="month" id="mhdIn" class="fi2" style="font-size:15px;padding:8px 10px">
+    <div id="mhdHint" style="margin-top:6px;font-size:13px;display:none"></div>
+  </div>
   <div class="act-row">
-    <button class="btn btn-green" onclick="applyChange(1)">➕ Eingang</button>
-    <button class="btn btn-red"   onclick="applyChange(-1)">➖ Ausgang</button>
+    <button class="btn btn-green" onclick="showMhdRow(); applyChange(1)">➕ Eingang</button>
+    <button class="btn btn-red"   onclick="hideMhdRow(); applyChange(-1)">➖ Ausgang</button>
   </div>
 </div>
 
@@ -721,6 +747,17 @@ select.fi2{appearance:none}
     <div class="fg"><label id="fK0label">Anfangsbestand Kästen</label><input type="number" id="fK0" class="fi2" value="0" min="0"></div>
     <div class="fg"><label>Anfangsbestand Flaschen (lose)</label><input type="number" id="fF0" class="fi2" value="0" min="0"></div>
     <div class="fg"><label id="fMnLabel">Mindestbestand Kästen (Alarm)</label><input type="number" id="fMn" class="fi2" value="1" min="0"></div>
+
+    <!-- MHD Liste -->
+    <div class="fg" id="mhdEditRow" style="display:none">
+      <label>📅 MHD-Einträge</label>
+      <div id="mhdEditList" style="margin-bottom:8px;display:flex;flex-wrap:wrap;gap:6px;min-height:24px"></div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="month" id="mhdEditIn" class="fi2" style="flex:1;font-size:14px;padding:7px 10px">
+        <button type="button" onclick="addMhdEdit()" class="btn btn-accent" style="padding:8px 14px;flex-shrink:0">＋ Hinzufügen</button>
+      </div>
+    </div>
+
     <div class="mbtns">
       <button class="btn btn-accent" style="flex:1" onclick="saveProduct()">💾 Speichern</button>
       <button class="btn btn-surface" onclick="closeAdd()">Abbrechen</button>
@@ -781,7 +818,7 @@ select.fi2{appearance:none}
         <strong style="color:var(--text)">Claude</strong> · KI-Assistent von Anthropic
       </p>
       <p style="font-size:11px;color:var(--muted);margin-top:10px;letter-spacing:1px">
-        Version 0.61
+        Version 0.63
       </p>
     </div>
     <button class="btn btn-surface" style="width:100%;margin-top:16px" onclick="document.getElementById('impressumModal').classList.remove('open')">Schließen</button>
@@ -966,6 +1003,18 @@ function renderList() {
         <div class="sk">${p.kaesten} <span style="font-size:12px;color:var(--muted)">${p.einheit==='fass'?'Fass':p.einheit==='karton'?'Krt':'Kst'}</span></div>
         <div class="sf">${p.flaschen} lose</div>
         ${low?'<div class="slow">⚠️ Nachbestellen</div>':''}
+        ${(()=>{
+          const list = p.mhdList||[];
+          if(!list.length) return '';
+          const next = list.sort()[0];
+          const st = mhdStatus(next);
+          const [y,m2] = next.slice(0,7).split('-').map(Number);
+          const f = mhdFarbe(m2-1);
+          return `<div style="font-size:11px;margin-top:3px;display:flex;align-items:center;gap:4px">
+            <span style="width:9px;height:9px;border-radius:50%;background:${f.farbe};display:inline-block;border:1px solid rgba(0,0,0,.15)"></span>
+            <span style="color:${st?.color||'var(--muted)'}">MHD ${f.monat.slice(0,3)} ${y}</span>
+          </div>`;
+        })()}
       </div>
     </div>`;
   }).join('');
@@ -1037,6 +1086,26 @@ window.showDashPopup = function(type) {
         <div style="flex:1;font-size:13px;font-weight:600">${p.name}</div>
         <div style="font-size:13px;font-weight:700;color:var(--blue)">${p.flaschen} Fl</div>
       </div>`);
+  } else if (type === 'mhd') {
+    title = '📅 MHD Alarm';
+    items = prods.filter(p=>(p.mhdList||[]).length>0)
+      .sort((a,b)=>{
+        const aMin = Math.min(...(a.mhdList||[]).map(d=>new Date(d)));
+        const bMin = Math.min(...(b.mhdList||[]).map(d=>new Date(d)));
+        return aMin-bMin;
+      })
+      .map(p => {
+        const dates = (p.mhdList||[]).map(d=>{
+          const st = mhdStatus(d);
+          const [y,m] = d.slice(0,7).split('-').map(Number);
+          const f = mhdFarbe(m-1);
+          return `<span style="display:inline-flex;align-items:center;gap:4px;background:${st?.bg||'#f0fdf4'};color:${st?.color||'#22c55e'};border-radius:12px;padding:2px 8px;font-size:11px;font-weight:600;margin:2px">
+            <span style="width:10px;height:10px;border-radius:50%;background:${f.farbe};display:inline-block;border:1px solid rgba(0,0,0,.15)"></span>
+            ${f.monat.slice(0,3)} ${y} &nbsp;<button onclick="removeMhd('${p.id||Object.keys(products).find(k=>products[k]===p)}','${d}')" style="background:none;border:none;cursor:pointer;color:#999;font-size:11px;padding:0;line-height:1">✕</button>
+          </span>`;
+        }).join('');
+        return { name:p.name, sub: dates };
+      });
   } else if (type === 'fass') {
     title = '🛢️ Fässer';
     items = prods.filter(p=>p.einheit==='fass').sort((a,b)=>b.kaesten-a.kaesten)
@@ -1297,6 +1366,28 @@ window.dq = function(f, d) {
   el.value = Math.max(0,(parseInt(el.value)||0)+d);
 };
 
+window.showMhdRow = function() {
+  document.getElementById('mhdRow').style.display = 'block';
+  updateMhdHint();
+};
+window.hideMhdRow = function() {
+  document.getElementById('mhdRow').style.display = 'none';
+};
+window.updateMhdHint = function() {
+  const val = document.getElementById('mhdIn').value;
+  const hint = document.getElementById('mhdHint');
+  if (!val) { hint.style.display='none'; return; }
+  const [y,m] = val.split('-').map(Number);
+  const f = mhdFarbe(m-1);
+  const st = mhdStatus(new Date(y,m-1,28).toISOString());
+  hint.style.display = 'block';
+  hint.innerHTML = `Sticker-Farbe: <span style="display:inline-block;background:${f.farbe};color:${['⚪','🩷'].includes(f.emoji)?'#333':'#fff'};border-radius:20px;padding:2px 12px;font-weight:700;font-size:13px;border:1px solid rgba(0,0,0,.1)">${f.emoji} ${f.name}</span>&nbsp;<span style="font-size:12px;color:${st?.color}">${st?.label||''}</span>`;
+};
+document.addEventListener('DOMContentLoaded', () => {
+  const mi = document.getElementById('mhdIn');
+  if (mi) mi.addEventListener('change', updateMhdHint);
+});
+
 window.applyChange = async function(dir) {
   const k = parseInt(document.getElementById('qK').value)||0;
   const f = parseInt(document.getElementById('qF').value)||0;
@@ -1308,7 +1399,22 @@ window.applyChange = async function(dir) {
   const nK = Math.max(0, p.kaesten + k*dir);
   const nF = Math.max(0, p.flaschen + f*dir);
 
-  await fbUpdate(`products/${currentId}`, { kaesten: nK, flaschen: nF });
+  // MHD bei Eingang speichern
+  let mhdUpdate = {};
+  if (dir > 0) {
+    const mhdVal = document.getElementById('mhdIn').value;
+    if (mhdVal) {
+      const [y,m] = mhdVal.split('-').map(Number);
+      const mhdDate = new Date(y,m-1,28).toISOString().slice(0,10);
+      // MHD-Liste: bestehende + neues Datum (keine Duplikate)
+      const existing = p.mhdList || [];
+      if (!existing.includes(mhdDate)) existing.push(mhdDate);
+      existing.sort();
+      mhdUpdate = { mhdList: existing };
+    }
+  }
+
+  await fbUpdate(`products/${currentId}`, { kaesten: nK, flaschen: nF, ...mhdUpdate });
   await fbPush('history', { pn:p.name, dK:k*dir, dF:f*dir, nK, nF, dir:dir>0?'p':'m', ts:new Date().toISOString(), user:currentUser?.kuerzel||'?' });
 
   const parts=[];
@@ -1316,9 +1422,11 @@ window.applyChange = async function(dir) {
   if(f) parts.push(`${f} Fl.`);
   toast(`${dir>0?'➕':'➖'} ${p.name}: ${parts.join(' + ')}`, dir>0?'s':'e');
 
-  // Zähler zurücksetzen nach Buchung
   document.getElementById('qK').value = 0;
   document.getElementById('qF').value = 0;
+  document.getElementById('mhdIn').value = '';
+  document.getElementById('mhdHint').style.display = 'none';
+  document.getElementById('mhdRow').style.display = 'none';
 
   if (nK < (p.minBestand||0)) setTimeout(()=>toast(`⚠️ ${p.name}: Mindestbestand!`,'e'),1400);
 };
@@ -1437,12 +1545,25 @@ window.filterMarkenDropdown = function(val) {
 // ── SHARE OR SAVE ─────────────────────────────────────────────────────────────
 // ── ADMIN TABS ────────────────────────────────────────────────────────────────
 window.switchAdminTab = function(tab) {
-  document.getElementById('adminPanel1').style.display = tab===1?'block':'none';
-  document.getElementById('adminPanel2').style.display = tab===2?'block':'none';
-  const a = 'var(--accent)', b = 'var(--border)', s = 'var(--surface)';
-  document.getElementById('adminTab1').style.cssText = `padding:8px;border-radius:var(--r);border:2px solid ${tab===1?a:b};background:${tab===1?a:s};color:${tab===1?'#fff':'var(--muted)'};font-weight:700;font-size:13px;cursor:pointer`;
-  document.getElementById('adminTab2').style.cssText = `padding:8px;border-radius:var(--r);border:2px solid ${tab===2?a:b};background:${tab===2?a:s};color:${tab===2?'#fff':'var(--muted)'};font-weight:700;font-size:13px;cursor:pointer`;
+  [1,2,3].forEach(t => {
+    const p = document.getElementById('adminPanel'+t);
+    const b = document.getElementById('adminTab'+t);
+    if(p) p.style.display = t===tab?'block':'none';
+    if(b) {
+      const active = t===tab;
+      b.style.cssText = `padding:8px;border-radius:var(--r);border:2px solid ${active?'var(--accent)':'var(--border)'};background:${active?'var(--accent)':'var(--surface)'};color:${active?'#fff':'var(--muted)'};font-weight:700;font-size:13px;cursor:pointer${t===3?';grid-column:1/-1':''}`;
+    }
+  });
   if (tab===2) renderMarkenMgmt();
+  if (tab===3) {
+    const el = document.getElementById('legendGridAdmin');
+    if (el) el.innerHTML = MHD_FARBEN.map(f=>
+      `<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:var(--r);background:var(--surface);border:1px solid var(--border)">
+        <span style="width:20px;height:20px;border-radius:50%;background:${f.farbe};display:inline-block;flex-shrink:0;border:1px solid rgba(0,0,0,.15)"></span>
+        <span style="font-size:13px;font-weight:600">${f.monat}</span>
+        <span style="font-size:12px;color:var(--muted);margin-left:auto">${f.name}</span>
+      </div>`).join('');
+  }
 };
 
 window.renderMarkenMgmt = function() {
@@ -1496,6 +1617,54 @@ window.deleteMarke = async function(name) {
   }
   toast(`🗑️ "${name}" entfernt (${toUpdate.length} Artikel)`, 'i');
   renderMarkenMgmt();
+};
+
+window.renderMhdEditList = function(list) {
+  window._mhdEditList = [...list];
+  const el = document.getElementById('mhdEditList');
+  if (!list.length) {
+    el.innerHTML = '<span style="font-size:12px;color:var(--muted)">Noch keine MHD-Einträge</span>';
+    return;
+  }
+  el.innerHTML = list.sort().map(d => {
+    const [y,m] = d.slice(0,7).split('-').map(Number);
+    const f = mhdFarbe(m-1);
+    const st = mhdStatus(new Date(y,m-1,28).toISOString());
+    return `<span style="display:inline-flex;align-items:center;gap:5px;background:${st?.bg||'#f0fdf4'};border:1px solid ${f.farbe}33;border-radius:20px;padding:4px 10px;font-size:13px;font-weight:600">
+      <span style="width:10px;height:10px;border-radius:50%;background:${f.farbe};display:inline-block;border:1px solid rgba(0,0,0,.15)"></span>
+      <span style="color:${st?.color||'var(--text)'}">${f.monat.slice(0,3)} ${y}</span>
+      <button type="button" onclick="removeMhdEdit('${d}')" style="background:none;border:none;cursor:pointer;color:#999;font-size:14px;padding:0;line-height:1;margin-left:2px">✕</button>
+    </span>`;
+  }).join('');
+};
+
+window.addMhdEdit = function() {
+  const val = document.getElementById('mhdEditIn').value;
+  if (!val) { toast('Bitte Monat auswählen','e'); return; }
+  const [y,m] = val.split('-').map(Number);
+  const date = new Date(y,m-1,28).toISOString().slice(0,10);
+  if (!window._mhdEditList) window._mhdEditList = [];
+  if (window._mhdEditList.includes(date)) { toast('Dieser Monat ist bereits eingetragen','e'); return; }
+  window._mhdEditList.push(date);
+  renderMhdEditList(window._mhdEditList);
+  document.getElementById('mhdEditIn').value = '';
+  const [,mo] = date.slice(0,7).split('-').map(Number);
+  const f = mhdFarbe(mo-1);
+  toast(`📅 ${f.monat} hinzugefügt – ${f.emoji} ${f.name} Aufkleber`, 'i');
+};
+
+window.removeMhdEdit = function(date) {
+  window._mhdEditList = (window._mhdEditList||[]).filter(d=>d!==date);
+  renderMhdEditList(window._mhdEditList);
+};
+
+window.removeMhd = async function(id, date) {
+  const p = products[id];
+  if (!p) return;
+  const newList = (p.mhdList||[]).filter(d=>d!==date);
+  await fbUpdate(`products/${id}`, { mhdList: newList.length ? newList : null });
+  toast('📅 MHD entfernt','i');
+  showDashPopup('mhd');
 };
 
 window.shareOrSave = async function(wb, filename, successMsg) {
@@ -1571,6 +1740,9 @@ window.openAdd = function(id, prefillBarcode) {
     // Einheitenauswahl beim Bearbeiten – aktuelle Einheit vorauswählen
     document.getElementById('einheitRow').style.display = 'block';
     selectEinheit(p.einheit || 'kasten');
+    // MHD-Bereich nur beim Bearbeiten anzeigen
+    document.getElementById('mhdEditRow').style.display = 'block';
+    renderMhdEditList(p.mhdList||[]);
   } else {
     document.getElementById('mTitle').textContent = '➕ Neues Produkt';
     document.getElementById('fNm').value    = '';
@@ -1585,6 +1757,9 @@ window.openAdd = function(id, prefillBarcode) {
     // Einheitenauswahl bei neuem Artikel einblenden, Kasten als Standard
     document.getElementById('einheitRow').style.display = 'block';
     selectEinheit('kasten');
+    // MHD-Bereich bei neuem Artikel ausblenden
+    document.getElementById('mhdEditRow').style.display = 'none';
+    document.getElementById('mhdEditList').innerHTML = '';
   }
   document.getElementById('addModal').classList.add('open');
   // Marken-Vorschläge aus bestehenden Produkten befüllen
@@ -1614,6 +1789,7 @@ window.saveProduct = async function() {
     flaschen:   parseInt(document.getElementById('fF0').value)||0,
     minBestand: parseInt(document.getElementById('fMn').value)||0,
     liter:      parseFloat(document.getElementById('fLiter').value)||null,
+    mhdList:    window._mhdEditList?.length ? [...window._mhdEditList].sort() : null,
     einheit,
   };
   const key = id || Date.now().toString();
@@ -2217,11 +2393,14 @@ window.logoutUser = function() {
 };
 
 window.openUserMgmt = function() {
-  if (!currentUser || currentUser.role !== 'admin') {
-    toast('Nur Admins können Benutzer verwalten', 'e'); return;
+  if (!currentUser) return;
+  const isAdmin = currentUser.role==='admin' || currentUser.kuerzel==='ADM';
+  if (isAdmin) {
+    renderUserList();
+    document.getElementById('userMgmtModal').classList.add('open');
+  } else {
+    document.getElementById('legendModal').classList.add('open');
   }
-  renderUserList();
-  document.getElementById('userMgmtModal').classList.add('open');
 };
 window.closeUserMgmt = function() { document.getElementById('userMgmtModal').classList.remove('open'); };
 
@@ -2314,6 +2493,7 @@ window.renderDashboard = function() {
   const totalFassL  = prods.filter(p=>p.einheit==='fass').reduce((s,p)=>s+(p.kaesten||0)*(p.liter||0),0);
   const totalKarton = prods.filter(p=>p.einheit==='karton').reduce((s,p)=>s+(p.kaesten||0),0);
   const alarmCount  = prods.filter(p=>p.kaesten<(p.minBestand||0)).length;
+  const mhdAlarm    = prods.filter(p=>(p.mhdList||[]).some(d=>mhdStatus(d)?.color==='#ef4444')).length;
 
   document.getElementById('dashGrid').innerHTML = `
     <div class="dash-card" onclick="showDashPopup('alle')" style="cursor:pointer"><div class="dash-val">${totalProds}</div><div class="dash-label">Artikel</div></div>
@@ -2450,6 +2630,14 @@ if (savedSession) {
     if (currentUser.kuerzel === 'ADM') currentUser.role = 'admin';
     document.getElementById('loginScreen').classList.add('hidden');
     document.getElementById('userBadge').textContent = currentUser.kuerzel;
+  // Legende-Grid befüllen
+  const lg = document.getElementById('legendGrid');
+  if (lg) lg.innerHTML = MHD_FARBEN.map((f,i)=>
+    `<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:var(--r);background:var(--surface);border:1px solid var(--border)">
+      <span style="width:20px;height:20px;border-radius:50%;background:${f.farbe};display:inline-block;flex-shrink:0;border:1px solid rgba(0,0,0,.15)"></span>
+      <span style="font-size:13px;font-weight:600">${f.monat}</span>
+      <span style="font-size:12px;color:var(--muted);margin-left:auto">${f.name}</span>
+    </div>`).join('');
     startApp();
   } catch(e) {
     localStorage.removeItem('balloni_session');
