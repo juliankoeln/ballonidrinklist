@@ -17,7 +17,7 @@ if ('serviceWorker' in navigator) {
 // Online/Offline Events
 window.addEventListener('online', () => {
   document.getElementById('syncDot')?.classList.remove('offline-mode');
-  if (typeof syncOfflineQueue === 'function') syncOfflineQueue().then(() => render());
+  if (typeof syncOfflineQueue === 'function') syncOfflineQueue();
 });
 window.addEventListener('offline', () => {
   document.getElementById('syncDot')?.classList.add('offline-mode');
@@ -818,7 +818,7 @@ select.fi2{appearance:none}
         <strong style="color:var(--text)">Claude</strong> · KI-Assistent von Anthropic
       </p>
       <p style="font-size:11px;color:var(--muted);margin-top:10px;letter-spacing:1px">
-        Version 0.64
+        Version 0.65
       </p>
     </div>
     <button class="btn btn-surface" style="width:100%;margin-top:16px" onclick="document.getElementById('impressumModal').classList.remove('open')">Schließen</button>
@@ -858,25 +858,11 @@ function initFirebase() {
   document.getElementById('syncDot').className = 'sync-dot ok';
 
   onValue(ref(db, 'products'), snap => {
-    // Wenn Sync läuft: Firebase-Update ignorieren bis Queue verarbeitet
-    if (_syncInProgress) return;
-    const incoming = snap.val() || {};
-    // Offline-Queue-Einträge schützen: lokale products-Änderungen mergen
-    if (offlineQueue.length > 0) {
-      // Lokale Änderungen haben Vorrang bis sync abgeschlossen
-      const merged = { ...incoming };
-      offlineQueue.filter(op=>op.path.startsWith('products/')).forEach(op=>{
-        const id = op.path.split('/')[1];
-        if (op.type==='update') merged[id] = { ...(merged[id]||{}), ...op.data };
-      });
-      products = merged;
-    } else {
-      products = incoming;
-    }
+    products = snap.val() || {};
+    localStorage.setItem('lager_p', JSON.stringify(products));
     render();
   });
   onValue(ref(db, 'history'), snap => {
-    if (_syncInProgress) return;
     history = snap.val() || {};
     renderHistory();
   });
@@ -911,7 +897,6 @@ let _syncInProgress = false;
 
 async function syncOfflineQueue() {
   if (!offlineQueue.length || !connected) return;
-  if (_syncInProgress) return;
   _syncInProgress = true;
   const q = [...offlineQueue];
   offlineQueue = [];
