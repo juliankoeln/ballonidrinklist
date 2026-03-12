@@ -756,7 +756,7 @@ select.fi2{appearance:none}
         <strong style="color:var(--text)">Claude</strong> · KI-Assistent von Anthropic
       </p>
       <p style="font-size:11px;color:var(--muted);margin-top:10px;letter-spacing:1px">
-        Version 0.56
+        Version 0.59
       </p>
     </div>
     <button class="btn btn-surface" style="width:100%;margin-top:16px" onclick="document.getElementById('impressumModal').classList.remove('open')">Schließen</button>
@@ -960,15 +960,18 @@ function renderHistory() {
   el.innerHTML = arr.map(([key,h]) => {
     const d = new Date(h.ts);
     const ds = d.toLocaleDateString('de-DE')+' '+d.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
+    // Einheit des Produkts ermitteln
+    const prod = Object.values(products).find(p=>p.name===h.pn);
+    const einh = prod?.einheit==='fass' ? 'Fass' : prod?.einheit==='karton' ? 'Krt' : 'Kst';
     const parts=[];
-    if(h.dK) parts.push(`${h.dK>0?'+':''}${h.dK} Kst`);
+    if(h.dK) parts.push(`${h.dK>0?'+':''}${h.dK} ${einh}`);
     if(h.dF) parts.push(`${h.dF>0?'+':''}${h.dF} Fl`);
     const dir      = h.dir||'m';
     const dirClass = ['p','m','best'].includes(dir)?dir:'m';
     const icon     = icons[dir]||'📋';
     const label    = labels[dir]||dir;
     const userBadge = h.user?`<span style="background:#1a1a1a;color:#fff;border-radius:10px;padding:1px 7px;font-size:10px;font-weight:700;letter-spacing:1px;margin-left:4px">${h.user}</span>`:'';
-    const subInfo  = ['best','edit','del'].includes(dir)?'':` · ${h.nK??'–'} Kst, ${h.nF??'–'} Fl`;
+    const subInfo  = ['best','edit','del'].includes(dir)?'':` · ${h.nK??'–'} ${einh}, ${h.nF??'–'} Fl`;
     const delBtn   = isAdmin ? `<button onclick="deleteHistEntry('${key}')" style="background:none;border:none;color:#bbb;font-size:18px;cursor:pointer;padding:4px 8px;flex-shrink:0;line-height:1" title="Eintrag löschen">🗑️</button>` : '';
     return `<div class="hitem" style="align-items:center">
       <div class="hbadge ${dirClass}">${icon}</div>
@@ -1238,7 +1241,7 @@ window.filterInventur = function(q, exactId) {
     <div class="inv-card" id="inv_${p.id}">
       <div class="inv-top">
         <div style="font-size:22px">${catIcons[p.kategorie]||'📦'}</div>
-        <div style="flex:1"><div class="inv-name">${p.name}${p.liter ? ' <span style="font-size:11px;color:var(--muted);font-weight:400">('+(p.liter%1===0?p.liter+'.0':p.liter)+' Liter)</span>' : ''}</div><div class="inv-bar">${p.barcode||'–'}</div></div>
+        <div style="flex:1"><div class="inv-name">${p.name}${p.liter ? ' <span style="font-size:11px;color:var(--muted);font-weight:400">('+(p.liter%1===0?p.liter+'.0':p.liter)+' Liter)</span>' : ''}</div><div class="inv-bar">${p.marke?'🏷️ '+p.marke+' · ':''}${p.barcode||'–'}</div></div>
         <div style="text-align:right;font-size:12px;color:#888">Ist: <b>${einheitIcon(p)}${p.kaesten} / ${p.flaschen}Fl</b></div>
       </div>
       <div class="inv-row">
@@ -1342,7 +1345,7 @@ window.selNone = function() {
   renderList();
 };
 
-window.exportExcelSelected = function() {
+window.exportExcelSelected = async function() {
   if (!selectedIds.size) { toast('Keine Artikel ausgewählt','e'); return; }
   const now = new Date();
   const ds  = now.toLocaleDateString('de-DE')+' '+now.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
@@ -1376,8 +1379,7 @@ window.exportExcelSelected = function() {
   ws['!cols'] = [30,12,8,8,8,14,10,10,12].map(w=>({wch:w}));
   ws['!pageSetup'] = { orientation:'landscape', fitToPage:true, fitToWidth:1, fitToHeight:0, paperSize:9 };
   XLSX.utils.book_append_sheet(wb, ws, 'Auswahl');
-  XLSX.writeFile(wb, `Lager_Auswahl_${now.toISOString().slice(0,10)}.xlsx`);
-  toast(`📊 Excel mit ${sorted.length} Artikeln gespeichert`,'s');
+  await shareOrSave(wb, `Lager_Auswahl_${now.toISOString().slice(0,10)}.xlsx`, `📊 Excel mit ${sorted.length} Artikeln`);
 };
 
 window.showMarkenDropdown = function(val) {
@@ -1407,6 +1409,32 @@ window.filterMarkenDropdown = function(val) {
     el.addEventListener('mousedown',  pick);
     el.addEventListener('touchstart', pick, { passive: false });
   });
+};
+
+// ── SHARE OR SAVE ─────────────────────────────────────────────────────────────
+window.shareOrSave = async function(wb, filename, successMsg) {
+  const wbout = XLSX.write(wb, { bookType:'xlsx', type:'array' });
+  const blob  = new Blob([wbout], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const file  = new File([blob], filename, { type: blob.type });
+
+  // Web Share API mit Datei-Support (Android Chrome, iOS Safari)
+  if (navigator.share && navigator.canShare && navigator.canShare({ files:[file] })) {
+    try {
+      await navigator.share({ files:[file], title: filename });
+      toast(successMsg, 's');
+      return;
+    } catch(e) {
+      if (e.name !== 'AbortError') {
+        // Fallback wenn Share fehlschlägt
+        XLSX.writeFile(wb, filename);
+        toast(successMsg, 's');
+      }
+      return;
+    }
+  }
+  // Fallback: direkt speichern (PC / Browser ohne Share API)
+  XLSX.writeFile(wb, filename);
+  toast(successMsg, 's');
 };
 
 window.clearFoundCard = function() {
@@ -1680,7 +1708,7 @@ window.switchView = function(v) {
 };
 
 // ── EXCEL EXPORT ──────────────────────────────────────────────────────────────
-window.exportExcel = function() {
+window.exportExcel = async function() {
   const now = new Date();
   const ds  = now.toLocaleDateString('de-DE')+' '+now.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
 
@@ -1733,8 +1761,7 @@ window.exportExcel = function() {
   ws2['!pageSetup'] = { orientation:'landscape', fitToPage:true, fitToWidth:1, fitToHeight:0, paperSize:9 };
   XLSX.utils.book_append_sheet(wb, ws1, 'Lagerbestand');
   XLSX.utils.book_append_sheet(wb, ws2, 'Buchungsverlauf');
-  XLSX.writeFile(wb, `Lager_${now.toISOString().slice(0,10)}.xlsx`);
-  toast('📊 Excel gespeichert','s');
+  await shareOrSave(wb, `Lager_${now.toISOString().slice(0,10)}.xlsx`, '📊 Lagerbestand Excel');
 };
 
 // ── TOAST ─────────────────────────────────────────────────────────────────────
@@ -1758,7 +1785,7 @@ window.renderInventur = function() {
     <div class="inv-card" id="inv_${p.id}">
       <div class="inv-top">
         <div style="font-size:22px">${catIcons[p.kategorie]||'📦'}</div>
-        <div style="flex:1"><div class="inv-name">${p.name}${p.liter ? ' <span style="font-size:11px;color:var(--muted);font-weight:400">('+(p.liter%1===0?p.liter+'.0':p.liter)+' Liter)</span>' : ''}</div><div class="inv-bar">${p.barcode||'–'}</div></div>
+        <div style="flex:1"><div class="inv-name">${p.name}${p.liter ? ' <span style="font-size:11px;color:var(--muted);font-weight:400">('+(p.liter%1===0?p.liter+'.0':p.liter)+' Liter)</span>' : ''}</div><div class="inv-bar">${p.marke?'🏷️ '+p.marke+' · ':''}${p.barcode||'–'}</div></div>
         <div style="text-align:right;font-size:12px;color:#888">Ist: <b>${einheitIcon(p)}${p.kaesten} / ${p.flaschen}Fl</b></div>
       </div>
       <div class="inv-row">
@@ -1940,7 +1967,7 @@ window.updateBestPos = function(i) {
   toast('✅ Position aktualisiert', 's');
 };
 
-window.exportBestellung = function() {
+window.exportBestellung = async function() {
   if (!bestellung.length) { toast('Bestellung ist leer','e'); return; }
   const now = new Date();
   const ds  = now.toLocaleDateString('de-DE');
@@ -1998,8 +2025,7 @@ window.exportBestellung = function() {
   if (ws['A5']) ws['A5'].s = { font:{ bold:true, sz:13 } };
 
   XLSX.utils.book_append_sheet(wb, ws, 'Bestellung');
-  XLSX.writeFile(wb, `Bestellung_${ds.replace(/\./g,'-')}.xlsx`);
-  toast('📄 Bestellung exportiert', 's');
+  await shareOrSave(wb, `Bestellung_${ds.replace(/\./g,'-')}.xlsx`, '📄 Bestellung exportiert');
 
   // Verlauf-Eintrag
   const posList = bestellung.map(p => {
