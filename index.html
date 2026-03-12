@@ -17,7 +17,7 @@ if ('serviceWorker' in navigator) {
 // Online/Offline Events
 window.addEventListener('online', () => {
   document.getElementById('syncDot')?.classList.remove('offline-mode');
-  if (typeof syncOfflineQueue === 'function') syncOfflineQueue();
+  if (typeof syncOfflineQueue === 'function') syncOfflineQueue().then(() => render());
 });
 window.addEventListener('offline', () => {
   document.getElementById('syncDot')?.classList.add('offline-mode');
@@ -523,7 +523,7 @@ select.fi2{appearance:none}
     <div id="mhdHint" style="margin-top:6px;font-size:13px;display:none"></div>
   </div>
   <div class="act-row">
-    <button class="btn btn-green" onclick="showMhdRow(); applyChange(1)">➕ Eingang</button>
+    <button class="btn btn-green" id="eingangsBtn" onclick="handleEingang()">➕ Eingang</button>
     <button class="btn btn-red"   onclick="hideMhdRow(); applyChange(-1)">➖ Ausgang</button>
   </div>
 </div>
@@ -818,7 +818,7 @@ select.fi2{appearance:none}
         <strong style="color:var(--text)">Claude</strong> · KI-Assistent von Anthropic
       </p>
       <p style="font-size:11px;color:var(--muted);margin-top:10px;letter-spacing:1px">
-        Version 0.63
+        Version 0.64
       </p>
     </div>
     <button class="btn btn-surface" style="width:100%;margin-top:16px" onclick="document.getElementById('impressumModal').classList.remove('open')">Schließen</button>
@@ -858,10 +858,25 @@ function initFirebase() {
   document.getElementById('syncDot').className = 'sync-dot ok';
 
   onValue(ref(db, 'products'), snap => {
-    products = snap.val() || {};
+    // Wenn Sync läuft: Firebase-Update ignorieren bis Queue verarbeitet
+    if (_syncInProgress) return;
+    const incoming = snap.val() || {};
+    // Offline-Queue-Einträge schützen: lokale products-Änderungen mergen
+    if (offlineQueue.length > 0) {
+      // Lokale Änderungen haben Vorrang bis sync abgeschlossen
+      const merged = { ...incoming };
+      offlineQueue.filter(op=>op.path.startsWith('products/')).forEach(op=>{
+        const id = op.path.split('/')[1];
+        if (op.type==='update') merged[id] = { ...(merged[id]||{}), ...op.data };
+      });
+      products = merged;
+    } else {
+      products = incoming;
+    }
     render();
   });
   onValue(ref(db, 'history'), snap => {
+    if (_syncInProgress) return;
     history = snap.val() || {};
     renderHistory();
   });
@@ -892,8 +907,12 @@ function queueOp(type, path, data) {
   saveQueue();
 }
 
+let _syncInProgress = false;
+
 async function syncOfflineQueue() {
   if (!offlineQueue.length || !connected) return;
+  if (_syncInProgress) return;
+  _syncInProgress = true;
   const q = [...offlineQueue];
   offlineQueue = [];
   saveQueue();
@@ -905,10 +924,11 @@ async function syncOfflineQueue() {
       if (op.type === 'set')    await set(ref(db, op.path), op.data);
       synced++;
     } catch(e) {
-      offlineQueue.push(op); // zurück in Queue bei Fehler
+      offlineQueue.push(op);
     }
   }
   saveQueue();
+  _syncInProgress = false;
   if (synced > 0) toast(`☁️ ${synced} Buchung${synced>1?'en':''} synchronisiert`, 's');
 }
 
@@ -1366,12 +1386,22 @@ window.dq = function(f, d) {
   el.value = Math.max(0,(parseInt(el.value)||0)+d);
 };
 
-window.showMhdRow = function() {
-  document.getElementById('mhdRow').style.display = 'block';
-  updateMhdHint();
+window.handleEingang = function() {
+  const row = document.getElementById('mhdRow');
+  const btn = document.getElementById('eingangsBtn');
+  if (row.style.display === 'none' || row.style.display === '') {
+    // Erster Klick: MHD-Feld einblenden
+    row.style.display = 'block';
+    updateMhdHint();
+    btn.textContent = '✅ Jetzt einbuchen';
+    btn.onclick = function() { applyChange(1); };
+  }
 };
 window.hideMhdRow = function() {
   document.getElementById('mhdRow').style.display = 'none';
+  const btn = document.getElementById('eingangsBtn');
+  btn.textContent = '➕ Eingang';
+  btn.onclick = handleEingang;
 };
 window.updateMhdHint = function() {
   const val = document.getElementById('mhdIn').value;
@@ -1427,6 +1457,8 @@ window.applyChange = async function(dir) {
   document.getElementById('mhdIn').value = '';
   document.getElementById('mhdHint').style.display = 'none';
   document.getElementById('mhdRow').style.display = 'none';
+  const btn = document.getElementById('eingangsBtn');
+  if (btn) { btn.textContent = '➕ Eingang'; btn.onclick = handleEingang; }
 
   if (nK < (p.minBestand||0)) setTimeout(()=>toast(`⚠️ ${p.name}: Mindestbestand!`,'e'),1400);
 };
