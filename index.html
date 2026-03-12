@@ -379,7 +379,17 @@ select.fi2{appearance:none}
 <!-- BENUTZER VERWALTUNG MODAL -->
 <div class="overlay" id="userMgmtModal">
   <div class="modal">
-    <h2>👥 Benutzerverwaltung</h2>
+    <h2>⚙️ Admin</h2>
+    <!-- Tabs -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:16px">
+      <button id="adminTab1" onclick="switchAdminTab(1)"
+        style="padding:8px;border-radius:var(--r);border:2px solid var(--accent);background:var(--accent);color:#fff;font-weight:700;font-size:13px;cursor:pointer">👥 Benutzer</button>
+      <button id="adminTab2" onclick="switchAdminTab(2)"
+        style="padding:8px;border-radius:var(--r);border:2px solid var(--border);background:var(--surface);color:var(--muted);font-weight:700;font-size:13px;cursor:pointer">🏷️ Hersteller</button>
+    </div>
+
+    <!-- TAB 1: Benutzer -->
+    <div id="adminPanel1">
     <p style="font-size:12px;color:#888;margin-bottom:14px">Nur Admin-Benutzer können Nutzer anlegen und löschen.</p>
     <div id="userList" style="margin-bottom:14px"></div>
     <div style="border-top:1px solid var(--border);padding-top:14px;margin-top:4px">
@@ -406,6 +416,21 @@ select.fi2{appearance:none}
       </div>
       <button class="btn btn-accent" style="width:100%;margin-top:4px" onclick="createUser()">＋ Benutzer anlegen</button>
     </div>
+    </div> <!-- /adminPanel1 -->
+
+    <!-- TAB 2: Hersteller -->
+    <div id="adminPanel2" style="display:none">
+      <p style="font-size:12px;color:#888;margin-bottom:12px">Herstellernamen bearbeiten oder löschen.</p>
+      <div id="markenMgmtList" style="margin-bottom:14px"></div>
+      <div style="border-top:1px solid var(--border);padding-top:12px">
+        <div style="font-size:12px;font-weight:600;margin-bottom:8px;color:#888;text-transform:uppercase;letter-spacing:1px">Neuer Hersteller</div>
+        <div style="display:flex;gap:8px">
+          <input type="text" id="newMarkeIn" class="fi2" placeholder="z.B. Coca Cola" autocomplete="off" style="flex:1">
+          <button class="btn btn-accent" onclick="addMarke()">＋</button>
+        </div>
+      </div>
+    </div>
+
     <div class="mbtns" style="margin-top:14px">
       <button class="btn btn-surface" style="flex:1" onclick="closeUserMgmt()">Schließen</button>
     </div>
@@ -756,7 +781,7 @@ select.fi2{appearance:none}
         <strong style="color:var(--text)">Claude</strong> · KI-Assistent von Anthropic
       </p>
       <p style="font-size:11px;color:var(--muted);margin-top:10px;letter-spacing:1px">
-        Version 0.59
+        Version 0.60
       </p>
     </div>
     <button class="btn btn-surface" style="width:100%;margin-top:16px" onclick="document.getElementById('impressumModal').classList.remove('open')">Schließen</button>
@@ -1412,6 +1437,70 @@ window.filterMarkenDropdown = function(val) {
 };
 
 // ── SHARE OR SAVE ─────────────────────────────────────────────────────────────
+// ── ADMIN TABS ────────────────────────────────────────────────────────────────
+window.switchAdminTab = function(tab) {
+  document.getElementById('adminPanel1').style.display = tab===1?'block':'none';
+  document.getElementById('adminPanel2').style.display = tab===2?'block':'none';
+  const a = 'var(--accent)', b = 'var(--border)', s = 'var(--surface)';
+  document.getElementById('adminTab1').style.cssText = `padding:8px;border-radius:var(--r);border:2px solid ${tab===1?a:b};background:${tab===1?a:s};color:${tab===1?'#fff':'var(--muted)'};font-weight:700;font-size:13px;cursor:pointer`;
+  document.getElementById('adminTab2').style.cssText = `padding:8px;border-radius:var(--r);border:2px solid ${tab===2?a:b};background:${tab===2?a:s};color:${tab===2?'#fff':'var(--muted)'};font-weight:700;font-size:13px;cursor:pointer`;
+  if (tab===2) renderMarkenMgmt();
+};
+
+window.renderMarkenMgmt = function() {
+  const marken = [...new Set(Object.values(products).map(p=>p.marke).filter(Boolean))].sort();
+  const el = document.getElementById('markenMgmtList');
+  if (!marken.length) {
+    el.innerHTML = '<div style="color:var(--muted);font-size:13px;text-align:center;padding:12px">Noch keine Hersteller angelegt.</div>';
+    return;
+  }
+  el.innerHTML = marken.map(m => `
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)">
+      <div style="flex:1;font-size:14px;font-weight:600">🏷️ ${m}</div>
+      <button onclick="editMarke('${m.replace(/'/g,"\'")}'')" 
+        style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:5px 10px;font-size:12px;cursor:pointer">✏️</button>
+      <button onclick="deleteMarke('${m.replace(/'/g,"\'")}'')"
+        style="background:#fdecea;border:1px solid #f5c2c7;border-radius:8px;padding:5px 10px;font-size:12px;cursor:pointer;color:var(--red)">🗑️</button>
+    </div>`).join('');
+};
+
+window.addMarke = async function() {
+  const inp = document.getElementById('newMarkeIn');
+  const val = inp.value.trim();
+  if (!val) return;
+  // Prüfen ob schon vorhanden
+  const exists = Object.values(products).some(p=>p.marke===val);
+  if (exists) { toast('Hersteller existiert bereits','e'); return; }
+  inp.value = '';
+  toast('🏷️ ' + val + ' hinzugefügt – jetzt Artikeln zuweisen','i');
+  window._allMarken = [...new Set(Object.values(products).map(p=>p.marke).filter(Boolean)), val].sort();
+  renderMarkenMgmt();
+};
+
+window.editMarke = async function(oldName) {
+  const neu = prompt('Hersteller umbenennen:', oldName);
+  if (!neu || neu.trim()===oldName) return;
+  const neuTrim = neu.trim();
+  // Alle Produkte mit diesem Hersteller umbenennen
+  const updates = Object.entries(products).filter(([,p])=>p.marke===oldName);
+  for (const [id] of updates) {
+    await fbUpdate(`products/${id}`, { marke: neuTrim });
+  }
+  toast(`✅ "${oldName}" → "${neuTrim}" (${updates.length} Artikel)`, 's');
+  renderMarkenMgmt();
+};
+
+window.deleteMarke = async function(name) {
+  const count = Object.values(products).filter(p=>p.marke===name).length;
+  if (!confirm(`"${name}" löschen bei ${count} Artikel${count!==1?'n':''}? Der Herstellername wird entfernt.`)) return;
+  const toUpdate = Object.entries(products).filter(([,p])=>p.marke===name);
+  for (const [id] of toUpdate) {
+    await fbUpdate(`products/${id}`, { marke: null });
+  }
+  toast(`🗑️ "${name}" entfernt (${toUpdate.length} Artikel)`, 'i');
+  renderMarkenMgmt();
+};
+
 window.shareOrSave = async function(wb, filename, successMsg) {
   const wbout = XLSX.write(wb, { bookType:'xlsx', type:'array' });
   const blob  = new Blob([wbout], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
