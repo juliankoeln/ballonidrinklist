@@ -818,7 +818,7 @@ select.fi2{appearance:none}
         <strong style="color:var(--text)">Claude</strong> · KI-Assistent von Anthropic
       </p>
       <p style="font-size:11px;color:var(--muted);margin-top:10px;letter-spacing:1px">
-        Version 0.65
+        Version 0.65b
       </p>
     </div>
     <button class="btn btn-surface" style="width:100%;margin-top:16px" onclick="document.getElementById('impressumModal').classList.remove('open')">Schließen</button>
@@ -837,6 +837,33 @@ select.fi2{appearance:none}
 </div>
 
 <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script type="module">
+
+// ── MHD MONATSFARBEN ──────────────────────────────────────────────────────────
+const MHD_FARBEN = [
+  { monat:'Januar',    farbe:'#3b82f6', name:'Blau',      emoji:'🔵' },
+  { monat:'Februar',   farbe:'#92400e', name:'Braun',     emoji:'🟤' },
+  { monat:'März',      farbe:'#7c3aed', name:'Lila',      emoji:'🟣' },
+  { monat:'April',     farbe:'#f97316', name:'Orange',    emoji:'🟠' },
+  { monat:'Mai',       farbe:'#ec4899', name:'Pink',      emoji:'🌸' },
+  { monat:'Juni',      farbe:'#eab308', name:'Gelb',      emoji:'🟡' },
+  { monat:'Juli',      farbe:'#e5e7eb', name:'Weiß',      emoji:'⚪' },
+  { monat:'August',    farbe:'#ef4444', name:'Rot',       emoji:'🔴' },
+  { monat:'September', farbe:'#22c55e', name:'Grün',      emoji:'🟢' },
+  { monat:'Oktober',   farbe:'#06b6d4', name:'Hellblau',  emoji:'🩵' },
+  { monat:'November',  farbe:'#1f2937', name:'Schwarz',   emoji:'⬛' },
+  { monat:'Dezember',  farbe:'#f9a8d4', name:'Rosa',      emoji:'🩷' },
+];
+function mhdFarbe(monat0) { return MHD_FARBEN[monat0] || MHD_FARBEN[0]; }
+function mhdStatus(dateStr) {
+  if (!dateStr) return null;
+  const d = new Date(dateStr);
+  const diff = (d - Date.now()) / (1000*60*60*24);
+  if (diff < 0)   return { label:'Abgelaufen', color:'#ef4444', bg:'#fdecea' };
+  if (diff < 30)  return { label:'< 30 Tage',  color:'#ef4444', bg:'#fdecea' };
+  if (diff < 90)  return { label:'< 3 Monate', color:'#f97316', bg:'#fff3e0' };
+  return           { label:'OK',               color:'#22c55e', bg:'#f0fdf4' };
+}
+
 // ── DATA ─────────────────────────────────────────────────────────────────────
 let products = {};
 let history  = {};
