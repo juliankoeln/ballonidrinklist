@@ -818,7 +818,7 @@ select.fi2{appearance:none}
         <strong style="color:var(--text)">Claude</strong> · KI-Assistent von Anthropic
       </p>
       <p style="font-size:11px;color:var(--muted);margin-top:10px;letter-spacing:1px">
-        Version 0.66
+        Version 0.67
       </p>
     </div>
     <button class="btn btn-surface" style="width:100%;margin-top:16px" onclick="document.getElementById('impressumModal').classList.remove('open')">Schließen</button>
@@ -1898,7 +1898,8 @@ function startQuagga() {
       multiple: false,
     },
     locate: true,
-    frequency: 15,
+    frequency: 20,
+    halfSample: true,
   }, function(err) {
     if (err) {
       let msg = '⚠️ ' + err.message;
@@ -1924,7 +1925,7 @@ function startQuagga() {
   Quagga.offDetected(); // alte listener entfernen
   let confirmCode = '';
   let confirmCount = 0;
-  const NEEDED = 3; // wie oft muss der gleiche Code hintereinander erkannt werden
+  const NEEDED = 2; // wie oft muss der gleiche Code hintereinander erkannt werden
 
   Quagga.onDetected(function(result) {
     const code = result?.codeResult?.code;
