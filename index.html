@@ -818,7 +818,7 @@ select.fi2{appearance:none}
         <strong style="color:var(--text)">Claude</strong> · KI-Assistent von Anthropic
       </p>
       <p style="font-size:11px;color:var(--muted);margin-top:10px;letter-spacing:1px">
-        Version 0.65b
+        Version 0.66
       </p>
     </div>
     <button class="btn btn-surface" style="width:100%;margin-top:16px" onclick="document.getElementById('impressumModal').classList.remove('open')">Schließen</button>
@@ -1881,8 +1881,9 @@ function startQuagga() {
       target: container,
       constraints: {
         facingMode: camFacingBack ? 'environment' : 'user',
-        width:  { ideal: 1280 },
-        height: { ideal: 720 },
+        width:  { min: 640, ideal: 1920 },
+        height: { min: 480, ideal: 1080 },
+        advanced: [{ torch: window._torchOn || false }],
       },
     },
     decoder: {
@@ -1897,7 +1898,7 @@ function startQuagga() {
       multiple: false,
     },
     locate: true,
-    frequency: 10,
+    frequency: 15,
   }, function(err) {
     if (err) {
       let msg = '⚠️ ' + err.message;
@@ -1970,6 +1971,22 @@ function startQuagga() {
   });
 }
 
+window._torchOn = false;
+window.toggleTorch = async function() {
+  window._torchOn = !window._torchOn;
+  document.getElementById('torchBtn').textContent = window._torchOn ? '🔦 Licht aus' : '🔦 Licht';
+  document.getElementById('torchBtn').style.background = window._torchOn ? '#f97316' : '#333';
+  // Torch über MediaStream Track direkt ansteuern
+  try {
+    const vid = document.querySelector('#quagga-container video');
+    if (vid?.srcObject) {
+      const track = vid.srcObject.getVideoTracks()[0];
+      if (track?.getCapabilities()?.torch !== undefined) {
+        await track.applyConstraints({ advanced: [{ torch: window._torchOn }] });
+      }
+    }
+  } catch(e) { toast('Taschenlampe nicht verfügbar auf diesem Gerät','e'); }
+};
 window.switchCam = function() {
   camFacingBack = !camFacingBack;
   startQuagga();
@@ -1980,6 +1997,9 @@ window.closeCamera = function() {
     try { Quagga.stop(); } catch(e) {}
     quaggaRunning = false;
   }
+  window._torchOn = false;
+  const tb = document.getElementById('torchBtn');
+  if (tb) { tb.textContent='🔦 Licht'; tb.style.background='#333'; }
   document.getElementById('quagga-container').innerHTML = '';
   document.getElementById('detectedBar').style.display = 'none';
   document.getElementById('camModal').classList.remove('open');
@@ -2050,23 +2070,11 @@ window.exportExcel = async function() {
     ]);
   });
 
-  const hrows=[['Buchungsverlauf'],[],['Datum','Uhrzeit','Produkt','Art','Kästen','Flaschen','Bestand Kst','Bestand Fl','Benutzer']];
-  Object.values(history).sort((a,b)=>new Date(b.ts)-new Date(a.ts)).forEach(h=>{
-    const d=new Date(h.ts);
-    hrows.push([d.toLocaleDateString('de-DE'),d.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}),
-      h.pn,h.dir==='p'?'Eingang':h.dir==='inv'?'Inventur':'Ausgang',h.dK,h.dF,h.nK,h.nF,h.user||'–']);
-  });
-
   const wb  = XLSX.utils.book_new();
   const ws1 = XLSX.utils.aoa_to_sheet(rows);
-  const ws2 = XLSX.utils.aoa_to_sheet(hrows);
   ws1['!cols'] = [30,12,8,8,8,14,10,10,12].map(w=>({wch:w}));
-  ws2['!cols'] = [12,8,28,10,8,10,12,12,10].map(w=>({wch:w}));
-  // Querformat für beide Sheets
   ws1['!pageSetup'] = { orientation:'landscape', fitToPage:true, fitToWidth:1, fitToHeight:0, paperSize:9 };
-  ws2['!pageSetup'] = { orientation:'landscape', fitToPage:true, fitToWidth:1, fitToHeight:0, paperSize:9 };
   XLSX.utils.book_append_sheet(wb, ws1, 'Lagerbestand');
-  XLSX.utils.book_append_sheet(wb, ws2, 'Buchungsverlauf');
   await shareOrSave(wb, `Lager_${now.toISOString().slice(0,10)}.xlsx`, '📊 Lagerbestand Excel');
 };
 
