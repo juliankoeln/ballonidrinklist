@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>📦 Getränke Lager</title>
+<title>🍺 Getränke Lager</title>
 
 <!-- Firebase -->
 
@@ -734,18 +734,18 @@ select.fi2{appearance:none}
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px" id="einheitBtns">
         <button type="button" class="einheit-btn active" data-einheit="kasten" onclick="selectEinheit('kasten')">📦<br><span>Kasten</span></button>
         <button type="button" class="einheit-btn" data-einheit="fass" onclick="selectEinheit('fass')">🛢️<br><span>Fass</span></button>
-        <button type="button" class="einheit-btn" data-einheit="karton" onclick="selectEinheit('karton')">🗃️<br><span>Karton</span></button>
+        <button type="button" class="einheit-btn" data-einheit="karton" onclick="selectEinheit('karton')">📦<br><span>Karton</span></button>
       </div>
     </div>
     <div class="fg" id="fPKrow"><label id="fPKlabel">Flaschen pro Kasten</label><input type="number" id="fPK" class="fi2" value="24" min="1"></div>
-    <div class="fg"><label>Liter pro Flasche / Einheit</label>
+    <div class="fg" id="fLiterRow"><label id="fLiterLabel">Liter pro Flasche / Einheit</label>
       <div style="display:flex;align-items:center;gap:8px">
         <input type="number" id="fLiter" class="fi2" value="" min="0.01" step="0.01" placeholder="z.B. 0.33" style="flex:1">
         <span style="font-size:14px;color:var(--muted);white-space:nowrap">Liter</span>
       </div>
     </div>
     <div class="fg"><label id="fK0label">Anfangsbestand Kästen</label><input type="number" id="fK0" class="fi2" value="0" min="0"></div>
-    <div class="fg"><label>Anfangsbestand Flaschen (lose)</label><input type="number" id="fF0" class="fi2" value="0" min="0"></div>
+    <div class="fg" id="fF0Row"><label>Anfangsbestand Flaschen (lose)</label><input type="number" id="fF0" class="fi2" value="0" min="0"></div>
     <div class="fg"><label id="fMnLabel">Mindestbestand Kästen (Alarm)</label><input type="number" id="fMn" class="fi2" value="1" min="0"></div>
 
     <!-- MHD Liste -->
@@ -818,7 +818,7 @@ select.fi2{appearance:none}
         <strong style="color:var(--text)">Claude</strong> · KI-Assistent von Anthropic
       </p>
       <p style="font-size:11px;color:var(--muted);margin-top:10px;letter-spacing:1px">
-        Version 0.67
+        Version 0.70
       </p>
     </div>
     <button class="btn btn-surface" style="width:100%;margin-top:16px" onclick="document.getElementById('impressumModal').classList.remove('open')">Schließen</button>
@@ -981,7 +981,7 @@ function einheitLabel(p, short=false) {
 }
 function einheitIcon(p) {
   if (p.einheit==='fass')   return '🛢️';
-  if (p.einheit==='karton') return '🗃️';
+  if (p.einheit==='karton') return '📦';
   return '📦';
 }
 
@@ -1147,12 +1147,12 @@ window.showDashPopup = function(type) {
         <div style="font-size:13px;font-weight:700">🛢️ ${p.kaesten}</div>
       </div>`);
   } else if (type === 'karton') {
-    title = '🗃️ Kartons';
+    title = '📦 Kartons';
     items = prods.filter(p=>p.einheit==='karton').sort((a,b)=>b.kaesten-a.kaesten)
       .map(p=>`<div class="dash-top-item">
         <span style="font-size:18px">${catIcons[p.kategorie]||'📦'}</span>
         <div style="flex:1;font-size:13px;font-weight:600">${p.name}</div>
-        <div style="font-size:13px;font-weight:700">🗃️ ${p.kaesten}</div>
+        <div style="font-size:13px;font-weight:700">📦 ${p.kaesten}</div>
       </div>`);
   } else if (type === 'alarm') {
     title = '⚠️ Mindestbestand unterschritten';
@@ -1477,14 +1477,24 @@ window.applyChange = async function(dir) {
 
 window.selectEinheit = function(e) {
   document.querySelectorAll('.einheit-btn').forEach(b => b.classList.toggle('active', b.dataset.einheit===e));
-  const labels = { kasten:['Anfangsbestand Kästen','Mindestbestand Kästen (Alarm)','block','Flaschen pro Kasten'],
-                   fass:  ['Anfangsbestand Fässer','Mindestbestand Fässer (Alarm)','none','Flaschen pro Kasten'],
-                   karton:['Anfangsbestand Kartons','Mindestbestand Kartons (Alarm)','block','Flaschen pro Karton'] };
-  const [k0lbl, mnlbl, pkvis, pklbl] = labels[e] || labels.kasten;
-  document.getElementById('fK0label').textContent = k0lbl;
-  document.getElementById('fMnLabel').textContent = mnlbl;
-  document.getElementById('fPKrow').style.display = pkvis;
-  document.getElementById('fPKlabel').textContent = pklbl;
+  const isFass   = e === 'fass';
+  const isKasten = e === 'kasten';
+  const isKarton = e === 'karton';
+
+  // Labels
+  document.getElementById('fK0label').textContent  = isFass ? 'Anfangsbestand Fässer' : isKarton ? 'Anfangsbestand Kartons' : 'Anfangsbestand Kästen';
+  document.getElementById('fMnLabel').textContent  = isFass ? 'Mindestbestand Fässer (Alarm)' : isKarton ? 'Mindestbestand Kartons (Alarm)' : 'Mindestbestand Kästen (Alarm)';
+
+  // Flaschen pro Kasten/Karton – nur bei Kasten + Karton
+  document.getElementById('fPKrow').style.display  = isFass ? 'none' : '';
+  document.getElementById('fPKlabel').textContent  = isKarton ? 'Flaschen pro Karton' : 'Flaschen pro Kasten';
+
+  // Lose Flaschen – nur bei Kasten sinnvoll
+  document.getElementById('fF0Row').style.display  = isKasten ? '' : 'none';
+
+  // Liter – immer anzeigen, Label je nach Einheit
+  document.getElementById('fLiterRow').style.display = '';
+  document.getElementById('fLiterLabel').textContent = isFass ? 'Liter Inhalt (Fass gesamt)' : isKarton ? 'Liter pro Flasche' : 'Liter pro Flasche';
 };
 
 // ── AUSWAHL-MODUS ─────────────────────────────────────────────────────────────
@@ -2553,7 +2563,7 @@ window.renderDashboard = function() {
     <div class="dash-card" onclick="showDashPopup('kaesten')" style="cursor:pointer"><div class="dash-val">${totalKasten}</div><div class="dash-label">Kästen gesamt</div></div>
     <div class="dash-card" onclick="showDashPopup('flaschen')" style="cursor:pointer"><div class="dash-val">${totalFl}</div><div class="dash-label">Lose Flaschen</div></div>
     <div class="dash-card" onclick="showDashPopup('fass')" style="cursor:pointer"><div class="dash-val">${totalFass}${totalFassL>0?' <span style="font-size:13px;color:var(--muted);font-weight:500">/ '+totalFassL+'L</span>':''}</div><div class="dash-label">🛢️ Fässer</div></div>
-    <div class="dash-card" onclick="showDashPopup('karton')" style="cursor:pointer"><div class="dash-val">${totalKarton}</div><div class="dash-label">🗃️ Kartons</div></div>
+    <div class="dash-card" onclick="showDashPopup('karton')" style="cursor:pointer"><div class="dash-val">${totalKarton}</div><div class="dash-label">📦 Kartons</div></div>
     <div class="dash-card" onclick="showDashPopup('alarm')" style="cursor:pointer;${alarmCount>0?'border-color:var(--red);background:#fdecea':''}">
       <div class="dash-val" style="${alarmCount>0?'color:var(--red)':''}">${alarmCount}</div>
       <div class="dash-label">⚠️ Alarme</div>
