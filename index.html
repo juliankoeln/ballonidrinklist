@@ -850,7 +850,8 @@ select.fi2{appearance:none}
 <div class="overlay" id="camModal">
   <div class="modal" style="padding:0;border-radius:20px 20px 0 0;overflow:hidden;background:#000">
     <div id="camWrap" style="position:relative;width:100%;background:#000;min-height:220px">
-      <video id="zxing-video" style="width:100%;max-height:55vh;object-fit:cover;display:block;filter:contrast(2) brightness(1.2) saturate(0)" autoplay muted playsinline></video>
+      <video id="zxing-video" style="width:100%;max-height:55vh;object-fit:cover;display:block;filter:contrast(1.4) brightness(1.1) saturate(0.3)" autoplay muted playsinline onclick="tapFocus(event)" title="Tippen zum Fokussieren"></video>
+      <div id="focusRing" style="display:none;position:absolute;width:60px;height:60px;border:2px solid #fff;border-radius:50%;pointer-events:none;transform:translate(-50%,-50%);box-shadow:0 0 0 1px rgba(0,0,0,.5)"></div>
       <canvas id="zxing-canvas" style="display:none"></canvas>
       <!-- Scan-Rahmen Overlay -->
       <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none">
@@ -900,7 +901,7 @@ select.fi2{appearance:none}
         <strong style="color:var(--text)">Claude</strong> · KI-Assistent von Anthropic
       </p>
       <p style="font-size:11px;color:var(--muted);margin-top:10px;letter-spacing:1px">
-        Version 0.77
+        Version 0.78
       </p>
     </div>
     <button class="btn btn-surface" style="width:100%;margin-top:16px" onclick="document.getElementById('impressumModal').classList.remove('open')">Schließen</button>
@@ -2063,6 +2064,40 @@ async function startZxing() {
 
 window._torchOn = false;
 window._contrastOn = false;
+
+window.tapFocus = async function(e) {
+  const vid = document.getElementById('zxing-video');
+  const ring = document.getElementById('focusRing');
+  
+  // Fokus-Ring anzeigen
+  const rect = vid.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+  ring.style.display = 'block';
+  ring.style.left = x + 'px';
+  ring.style.top  = y + 'px';
+  ring.style.opacity = '1';
+  setTimeout(() => { ring.style.opacity = '0'; setTimeout(() => ring.style.display='none', 300); }, 800);
+
+  // Kamera-Fokus setzen falls unterstützt
+  try {
+    if (vid?.srcObject) {
+      const track = vid.srcObject.getVideoTracks()[0];
+      const caps = track?.getCapabilities();
+      if (caps?.focusMode?.includes('manual') && caps?.focusDistance) {
+        const xRel = x / rect.width;
+        const yRel = y / rect.height;
+        await track.applyConstraints({
+          advanced: [{ focusMode: 'manual', pointsOfInterest: [{ x: xRel, y: yRel }] }]
+        });
+        // Nach kurzer Zeit zurück auf Autofokus
+        setTimeout(async () => {
+          try { await track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }); } catch(e){}
+        }, 2000);
+      }
+    }
+  } catch(e) {}
+};
 window.toggleContrast = function() {
   window._contrastOn = !window._contrastOn;
   const vid = document.getElementById('zxing-video');
