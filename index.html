@@ -54,9 +54,9 @@ window.addEventListener('offline', () => {
   window.__fb = { db, ref, set, onValue, push, remove, update, connected };
 </script>
 
-<!-- Barcode scanner (ZXing - rotation-unabhängig) -->
+<!-- Barcode scanner (Quagga2 - besser auf iPhone/Android) -->
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
-<script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2@1.2.6/dist/quagga.min.js"></script>
 
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&display=swap');
@@ -850,10 +850,8 @@ select.fi2{appearance:none}
 <div class="overlay" id="camModal">
   <div class="modal" style="padding:0;border-radius:20px 20px 0 0;overflow:hidden;background:#000">
     <div id="camWrap" style="position:relative;width:100%;background:#000;min-height:220px">
-      <video id="zxing-video" style="width:100%;max-height:55vh;object-fit:cover;display:block;filter:contrast(1.4) brightness(1.1) saturate(0.3)" autoplay muted playsinline onclick="tapFocus(event)" title="Tippen zum Fokussieren"></video>
-      <div id="focusRing" style="display:none;position:absolute;width:60px;height:60px;border:2px solid #fff;border-radius:50%;pointer-events:none;transform:translate(-50%,-50%);box-shadow:0 0 0 1px rgba(0,0,0,.5)"></div>
-      <canvas id="zxing-canvas" style="display:none"></canvas>
-      <div style="position:absolute;bottom:10px;left:50%;transform:translateX(-50%);color:rgba(255,255,255,0.6);font-size:11px;pointer-events:none">👆 Auf Barcode tippen zum Scannen</div>
+      <!-- Quagga rendert hier rein -->
+      <div id="quagga-container" style="width:100%;overflow:hidden;max-height:55vh"></div>
       <!-- Scan-Rahmen Overlay -->
       <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none">
         <div style="position:relative;width:72%;max-width:280px;height:100px">
@@ -870,9 +868,8 @@ select.fi2{appearance:none}
     </div>
     <div id="camStatus" style="background:#111;color:var(--muted);text-align:center;padding:10px 14px;font-size:13px">Kamera wird gestartet…</div>
     <div style="background:#000;padding:10px 14px;display:flex;gap:8px">
-      <button id="torchBtn" onclick="toggleTorch()" style="background:#333;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:13px;cursor:pointer">🔦 Licht</button>
-      <button class="btn btn-surface" style="flex:1;font-size:13px" onclick="switchCam()">🔄 Wechseln</button>
-      <button class="btn btn-surface" style="flex:1;font-size:13px" onclick="closeCamera()">✕ Schließen</button>
+      <button class="btn btn-surface" style="flex:1;font-size:13px" onclick="switchCam()">🔄 Kamera wechseln</button>
+      <button class="btn btn-surface" style="flex:1;font-size:13px" onclick="closeCamera()">Abbrechen</button>
     </div>
   </div>
 </div>
@@ -902,7 +899,7 @@ select.fi2{appearance:none}
         <strong style="color:var(--text)">Claude</strong> · KI-Assistent von Anthropic
       </p>
       <p style="font-size:11px;color:var(--muted);margin-top:10px;letter-spacing:1px">
-        Version 0.80
+        Version 0.72
       </p>
     </div>
     <button class="btn btn-surface" style="width:100%;margin-top:16px" onclick="document.getElementById('impressumModal').classList.remove('open')">Schließen</button>
@@ -1949,199 +1946,131 @@ document.getElementById('delModal').addEventListener('click', e => {
   if (e.target===document.getElementById('delModal')) closeDelModal();
 });
 
-// ── CAMERA BARCODE (ZXing – rotation-unabhängig) ─────────────────────────────
-let zxingReader   = null;
-let lastScanned   = '';
+// ── CAMERA BARCODE (Quagga2) ──────────────────────────────────────────────────
+let quaggaRunning = false;
+let lastScanned = '';
 let lastScannedTime = 0;
 let camFacingBack = true;
 
 window.openCamera = async function() {
   document.getElementById('camModal').classList.add('open');
-  document.getElementById('camStatus').textContent = '📷 Kamera wird gestartet…';
+  document.getElementById('camStatus').textContent = '📷 Kamera-Berechtigung wird angefragt…';
   document.getElementById('detectedBar').style.display = 'none';
-  await startZxing();
+  startQuagga();
 };
 
-async function startZxing() {
-  // Vorherigen Reader sauber stoppen
-  if (zxingReader) { try { zxingReader.reset(); } catch(e){} zxingReader = null; }
+function startQuagga() {
+  if (quaggaRunning) { Quagga.stop(); quaggaRunning = false; }
 
-  try {
-    // Prüfen ob ZXing geladen ist
-    if (typeof ZXing === 'undefined') {
-      document.getElementById('camStatus').textContent = '⚠️ Scanner-Bibliothek lädt noch – kurz warten…';
-      setTimeout(startZxing, 1000);
+  const container = document.getElementById('quagga-container');
+  container.innerHTML = ''; // reset
+
+  Quagga.init({
+    inputStream: {
+      name: 'Live',
+      type: 'LiveStream',
+      target: container,
+      constraints: {
+        facingMode: camFacingBack ? 'environment' : 'user',
+        width:  { min: 640, ideal: 1920 },
+        height: { min: 480, ideal: 1080 },
+        advanced: [{ torch: window._torchOn || false }],
+      },
+    },
+    decoder: {
+      readers: [
+        'ean_reader',       // EAN-13 (Standard Supermarkt)
+        'ean_8_reader',     // EAN-8
+        'upc_reader',       // UPC-A
+        'upc_e_reader',     // UPC-E
+        'code_128_reader',  // Code 128
+        'code_39_reader',   // Code 39
+      ],
+      multiple: false,
+    },
+    locate: true,
+    frequency: 20,
+    halfSample: true,
+  }, function(err) {
+    if (err) {
+      let msg = '⚠️ ' + err.message;
+      if (err.name === 'NotAllowedError' || (err.message||'').includes('Permission'))
+        msg = '⛔ Kamera verweigert – bitte in Einstellungen erlauben.';
+      document.getElementById('camStatus').textContent = msg;
       return;
     }
-
-    const videoEl = document.getElementById('zxing-video');
-    const hints = new Map();
-    hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
-    zxingReader = new ZXing.BrowserMultiFormatReader(hints);
-
-    // Rückkamera bevorzugen
-    const devices = await zxingReader.getVideoInputDevices();
-    let deviceId = undefined;
-    if (devices.length > 0) {
-      if (camFacingBack) {
-        const back = devices.find(d => /back|rear|environment|rück/i.test(d.label));
-        deviceId = back ? back.deviceId : devices[devices.length - 1].deviceId;
-      } else {
-        const front = devices.find(d => /front|user|face|vorder/i.test(d.label));
-        deviceId = front ? front.deviceId : devices[0].deviceId;
-      }
-    }
-
+    Quagga.start();
+    quaggaRunning = true;
     document.getElementById('camStatus').textContent = '🔍 Barcode in den Rahmen halten…';
 
-    // Timer – wenn nach 5s nichts erkannt → Hinweis anzeigen
-    let noScanHint = setTimeout(() => {
-      if (document.getElementById('camModal').classList.contains('open')) {
-        document.getElementById('camStatus').textContent = '💡 Tipp: Kamera näher ran, Winkel ändern oder Kontrast aktivieren';
-        setTimeout(() => {
-          if (document.getElementById('camModal').classList.contains('open')) {
-            document.getElementById('camStatus').textContent = '🔍 Barcode in den Rahmen halten…';
-          }
-        }, 4000);
-      }
-    }, 5000);
+    // Video-Element von Quagga stylen
+    const vid = container.querySelector('video');
+    if (vid) {
+      vid.style.cssText = 'width:100%;max-height:55vh;object-fit:cover;display:block';
+    }
+    const canvas = container.querySelector('canvas');
+    if (canvas) canvas.style.display = 'none'; // debug canvas ausblenden
+  });
 
-    // Hohe Auflösung + Autofokus für kleine Barcodes
-    const videoEl2 = document.getElementById('zxing-video');
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          deviceId: deviceId ? { exact: deviceId } : undefined,
-          facingMode: camFacingBack ? 'environment' : 'user',
-          width:  { ideal: 1920 },
-          height: { ideal: 1080 },
-          focusMode: 'continuous',
-          zoom: 1.0,
-        }
-      });
-      videoEl2.srcObject = stream;
-      // Autofokus auf Track aktivieren falls möglich
-      const track = stream.getVideoTracks()[0];
-      if (track?.getCapabilities()?.focusMode?.includes('continuous')) {
-        await track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] });
-      }
-    } catch(e) { /* Fallback – ZXing öffnet selbst die Kamera */ }
+  // Barcode erkannt
+  Quagga.offDetected(); // alte listener entfernen
+  let confirmCode = '';
+  let confirmCount = 0;
+  const NEEDED = 2; // wie oft muss der gleiche Code hintereinander erkannt werden
 
-    zxingReader.decodeFromVideoDevice(deviceId, 'zxing-video', (result, err) => {
-        if (!result) return;
-        const code = result.getText();
-        if (!code) return;
+  Quagga.onDetected(function(result) {
+    const code = result?.codeResult?.code;
+    if (!code) return;
 
-        // 3-Sekunden-Sperre gegen Doppelscan
-        const now = Date.now();
-        if (code === lastScanned && now - lastScannedTime < 1500) return;
-        lastScanned = code;
-        lastScannedTime = now;
+    // Gleichen Code nicht sofort zweimal scannen (3 Sek. Sperre nach Erfolg)
+    const now = Date.now();
+    if (code === lastScanned && now - lastScannedTime < 3000) return;
 
-        // Timer stoppen
-        clearTimeout(noScanHint);
-        // Vibration
-        if (navigator.vibrate) navigator.vibrate(80);
+    // Bestätigungs-Zähler
+    if (code === confirmCode) {
+      confirmCount++;
+    } else {
+      confirmCode = code;
+      confirmCount = 1;
+    }
 
-        // Anzeigen
-        document.getElementById('detectedCode').textContent = code;
-        document.getElementById('detectedBar').style.display = 'block';
-        document.getElementById('camStatus').textContent = '✅ Barcode erkannt!';
+    // Fortschritt anzeigen
+    const dots = '●'.repeat(confirmCount) + '○'.repeat(Math.max(0, NEEDED - confirmCount));
+    document.getElementById('camStatus').textContent = `🔍 Barcode halten… ${dots}`;
 
-        setTimeout(() => {
-          closeCamera();
-          bIn.value = code;
-          doScan();
-        }, 600);
-    });
+    if (confirmCount < NEEDED) return; // noch nicht sicher genug
 
-  } catch(err) {
-    let msg = '⚠️ ' + (err.message || String(err));
-    if (err.name === 'NotAllowedError' || (err.message||'').includes('ermission'))
-      msg = '⛔ Kamera verweigert – bitte in Einstellungen erlauben.';
-    document.getElementById('camStatus').textContent = msg;
-  }
+    // Jetzt sicher – akzeptieren
+    lastScanned = code;
+    lastScannedTime = now;
+    confirmCode = '';
+    confirmCount = 0;
+
+    // Vibration als Feedback (Android/iPhone)
+    if (navigator.vibrate) navigator.vibrate(80);
+
+    // Anzeigen
+    document.getElementById('detectedCode').textContent = code;
+    document.getElementById('detectedBar').style.display = 'block';
+    document.getElementById('camStatus').textContent = '✅ Barcode erkannt!';
+
+    // Kurz warten dann schließen & verarbeiten
+    setTimeout(() => {
+      closeCamera();
+      bIn.value = code;
+      doScan();
+    }, 600);
+  });
 }
 
 window._torchOn = false;
-window._contrastOn = false;
-
-window.tapFocus = async function(e) {
-  const vid = document.getElementById('zxing-video');
-  const canvas = document.getElementById('zxing-canvas');
-  const ring = document.getElementById('focusRing');
-
-  // Fokus-Ring anzeigen
-  const rect = vid.getBoundingClientRect();
-  const x = e.clientX - rect.left;
-  const y = e.clientY - rect.top;
-  ring.style.display = 'block';
-  ring.style.left = x + 'px';
-  ring.style.top  = y + 'px';
-  ring.style.opacity = '1';
-  ring.style.border = '2px solid #f97316';
-  setTimeout(() => { ring.style.opacity='0'; setTimeout(()=>ring.style.display='none',300); }, 1500);
-
-  document.getElementById('camStatus').textContent = '📸 Analysiere…';
-
-  // Snapshot vom aktuellen Video-Frame
-  try {
-    canvas.width  = vid.videoWidth  || 1280;
-    canvas.height = vid.videoHeight || 720;
-    const ctx = canvas.getContext('2d');
-    ctx.filter = 'contrast(1.8) brightness(1.2) saturate(0.2)';
-    ctx.drawImage(vid, 0, 0, canvas.width, canvas.height);
-    ctx.filter = 'none';
-
-    // ZXing decodeFromCanvas – korrekte API
-    const snapReader = new ZXing.BrowserMultiFormatReader();
-    try {
-      const result = await snapReader.decodeFromCanvas(canvas);
-      const code = result.getText();
-      if (code) {
-        ring.style.border = '2px solid #22c55e';
-        document.getElementById('detectedCode').textContent = code;
-        document.getElementById('detectedBar').style.display = 'block';
-        document.getElementById('camStatus').textContent = '✅ Barcode erkannt!';
-        lastScanned = code;
-        lastScannedTime = Date.now();
-        setTimeout(() => { closeCamera(); bIn.value = code; doScan(); }, 600);
-        return;
-      }
-    } catch(decodeErr) {
-      document.getElementById('camStatus').textContent = '🔍 Nicht erkannt – nochmal tippen…';
-      setTimeout(() => {
-        document.getElementById('camStatus').textContent = '🔍 Barcode in den Rahmen halten…';
-      }, 2000);
-    }
-  } catch(err) {
-    document.getElementById('camStatus').textContent = '🔍 Barcode in den Rahmen halten…';
-  }, 2000);
-    }
-  } catch(err) {
-    document.getElementById('camStatus').textContent = '🔍 Barcode in den Rahmen halten…';
-  }
-};
-window.toggleContrast = function() {
-  window._contrastOn = !window._contrastOn;
-  const vid = document.getElementById('zxing-video');
-  const btn = document.getElementById('contrastBtn');
-  if (window._contrastOn) {
-    vid.style.filter = 'contrast(2) brightness(1.2) saturate(0)';
-    btn.style.background = '#f97316';
-    btn.textContent = '🔆 Kontrast aus';
-  } else {
-    vid.style.filter = 'none';
-    btn.style.background = '#333';
-    btn.textContent = '🔆 Kontrast';
-  }
-};
 window.toggleTorch = async function() {
   window._torchOn = !window._torchOn;
   document.getElementById('torchBtn').textContent = window._torchOn ? '🔦 Licht aus' : '🔦 Licht';
   document.getElementById('torchBtn').style.background = window._torchOn ? '#f97316' : '#333';
+  // Torch über MediaStream Track direkt ansteuern
   try {
-    const vid = document.getElementById('zxing-video');
+    const vid = document.querySelector('#quagga-container video');
     if (vid?.srcObject) {
       const track = vid.srcObject.getVideoTracks()[0];
       if (track?.getCapabilities()?.torch !== undefined) {
@@ -2150,24 +2079,20 @@ window.toggleTorch = async function() {
     }
   } catch(e) { toast('Taschenlampe nicht verfügbar auf diesem Gerät','e'); }
 };
-
 window.switchCam = function() {
   camFacingBack = !camFacingBack;
-  startZxing();
+  startQuagga();
 };
 
 window.closeCamera = function() {
-  if (zxingReader) { try { zxingReader.reset(); } catch(e){} zxingReader = null; }
-  // Video-Stream stoppen
-  const vid = document.getElementById('zxing-video');
-  if (vid?.srcObject) { vid.srcObject.getTracks().forEach(t => t.stop()); vid.srcObject = null; }
-  if (vid) vid.style.filter = 'none';
+  if (quaggaRunning) {
+    try { Quagga.stop(); } catch(e) {}
+    quaggaRunning = false;
+  }
   window._torchOn = false;
-  window._contrastOn = false;
-  const cb = document.getElementById('contrastBtn');
-  if (cb) { cb.textContent='🔆 Kontrast'; cb.style.background='#333'; }
   const tb = document.getElementById('torchBtn');
   if (tb) { tb.textContent='🔦 Licht'; tb.style.background='#333'; }
+  document.getElementById('quagga-container').innerHTML = '';
   document.getElementById('detectedBar').style.display = 'none';
   document.getElementById('camModal').classList.remove('open');
 };
