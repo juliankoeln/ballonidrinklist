@@ -853,6 +853,7 @@ select.fi2{appearance:none}
       <video id="zxing-video" style="width:100%;max-height:55vh;object-fit:cover;display:block;filter:contrast(1.4) brightness(1.1) saturate(0.3)" autoplay muted playsinline onclick="tapFocus(event)" title="Tippen zum Fokussieren"></video>
       <div id="focusRing" style="display:none;position:absolute;width:60px;height:60px;border:2px solid #fff;border-radius:50%;pointer-events:none;transform:translate(-50%,-50%);box-shadow:0 0 0 1px rgba(0,0,0,.5)"></div>
       <canvas id="zxing-canvas" style="display:none"></canvas>
+      <div style="position:absolute;bottom:10px;left:50%;transform:translateX(-50%);color:rgba(255,255,255,0.6);font-size:11px;pointer-events:none">👆 Auf Barcode tippen zum Scannen</div>
       <!-- Scan-Rahmen Overlay -->
       <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none">
         <div style="position:relative;width:72%;max-width:280px;height:100px">
@@ -901,7 +902,7 @@ select.fi2{appearance:none}
         <strong style="color:var(--text)">Claude</strong> · KI-Assistent von Anthropic
       </p>
       <p style="font-size:11px;color:var(--muted);margin-top:10px;letter-spacing:1px">
-        Version 0.78
+        Version 0.79
       </p>
     </div>
     <button class="btn btn-surface" style="width:100%;margin-top:16px" onclick="document.getElementById('impressumModal').classList.remove('open')">Schließen</button>
@@ -2067,8 +2068,9 @@ window._contrastOn = false;
 
 window.tapFocus = async function(e) {
   const vid = document.getElementById('zxing-video');
+  const canvas = document.getElementById('zxing-canvas');
   const ring = document.getElementById('focusRing');
-  
+
   // Fokus-Ring anzeigen
   const rect = vid.getBoundingClientRect();
   const x = e.clientX - rect.left;
@@ -2077,26 +2079,57 @@ window.tapFocus = async function(e) {
   ring.style.left = x + 'px';
   ring.style.top  = y + 'px';
   ring.style.opacity = '1';
-  setTimeout(() => { ring.style.opacity = '0'; setTimeout(() => ring.style.display='none', 300); }, 800);
+  ring.style.border = '2px solid #f97316';
+  setTimeout(() => { ring.style.opacity='0'; setTimeout(()=>ring.style.display='none',300); }, 1500);
 
-  // Kamera-Fokus setzen falls unterstützt
+  document.getElementById('camStatus').textContent = '📸 Analysiere…';
+
+  // Snapshot vom aktuellen Video-Frame
   try {
-    if (vid?.srcObject) {
-      const track = vid.srcObject.getVideoTracks()[0];
-      const caps = track?.getCapabilities();
-      if (caps?.focusMode?.includes('manual') && caps?.focusDistance) {
-        const xRel = x / rect.width;
-        const yRel = y / rect.height;
-        await track.applyConstraints({
-          advanced: [{ focusMode: 'manual', pointsOfInterest: [{ x: xRel, y: yRel }] }]
-        });
-        // Nach kurzer Zeit zurück auf Autofokus
-        setTimeout(async () => {
-          try { await track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }); } catch(e){}
-        }, 2000);
+    canvas.width  = vid.videoWidth  || 1280;
+    canvas.height = vid.videoHeight || 720;
+    const ctx = canvas.getContext('2d');
+
+    // Kontrast-Filter auch auf Canvas anwenden
+    ctx.filter = 'contrast(1.8) brightness(1.2) saturate(0.2)';
+    ctx.drawImage(vid, 0, 0, canvas.width, canvas.height);
+    ctx.filter = 'none';
+
+    // ZXing auf dem Canvas-Bild ausführen
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const luminanceSource = new ZXing.HTMLCanvasElementLuminanceSource(canvas);
+    const binaryBitmap   = new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(luminanceSource));
+
+    const hints = new Map();
+    hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+    const reader = new ZXing.MultiFormatReader();
+    reader.setHints(hints);
+
+    try {
+      const result = reader.decode(binaryBitmap);
+      const code = result.getText();
+      if (code) {
+        ring.style.border = '2px solid #22c55e';
+        document.getElementById('detectedCode').textContent = code;
+        document.getElementById('detectedBar').style.display = 'block';
+        document.getElementById('camStatus').textContent = '✅ Barcode erkannt!';
+        if (navigator.vibrate) navigator.vibrate(80);
+        const now = Date.now();
+        lastScanned = code;
+        lastScannedTime = now;
+        setTimeout(() => { closeCamera(); bIn.value = code; doScan(); }, 600);
+        return;
       }
+    } catch(decodeErr) {
+      // Kein Barcode im Snapshot – weiter mit Live-Scan
+      document.getElementById('camStatus').textContent = '🔍 Nicht erkannt – nochmal tippen oder warten…';
+      setTimeout(() => {
+        document.getElementById('camStatus').textContent = '🔍 Barcode in den Rahmen halten…';
+      }, 2000);
     }
-  } catch(e) {}
+  } catch(err) {
+    document.getElementById('camStatus').textContent = '🔍 Barcode in den Rahmen halten…';
+  }
 };
 window.toggleContrast = function() {
   window._contrastOn = !window._contrastOn;
