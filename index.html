@@ -56,7 +56,7 @@ window.addEventListener('offline', () => {
 
 <!-- Barcode scanner (ZXing - rotation-unabhängig) -->
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
-<script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
+<script src="https://unpkg.com/@zxing/library@latest"></script>
 
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&display=swap');
@@ -899,7 +899,7 @@ select.fi2{appearance:none}
         <strong style="color:var(--text)">Claude</strong> · KI-Assistent von Anthropic
       </p>
       <p style="font-size:11px;color:var(--muted);margin-top:10px;letter-spacing:1px">
-        Version 0.73c
+        Version 0.73d
       </p>
     </div>
     <button class="btn btn-surface" style="width:100%;margin-top:16px" onclick="document.getElementById('impressumModal').classList.remove('open')">Schließen</button>
@@ -1977,7 +1977,7 @@ async function startZxing() {
     zxingReader = new ZXing.BrowserMultiFormatReader(hints);
 
     // Rückkamera bevorzugen
-    const devices = await zxingReader.getVideoInputDevices();
+    const devices = await zxingReader.listVideoInputDevices();
     let deviceId = undefined;
     if (devices.length > 0) {
       if (camFacingBack) {
