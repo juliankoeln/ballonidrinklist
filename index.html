@@ -899,7 +899,7 @@ select.fi2{appearance:none}
         <strong style="color:var(--text)">Claude</strong> · KI-Assistent von Anthropic
       </p>
       <p style="font-size:11px;color:var(--muted);margin-top:10px;letter-spacing:1px">
-        Version 0.73b
+        Version 0.73c
       </p>
     </div>
     <button class="btn btn-surface" style="width:100%;margin-top:16px" onclick="document.getElementById('impressumModal').classList.remove('open')">Schließen</button>
@@ -2048,10 +2048,12 @@ window.switchCam = function() {
 
 window.closeCamera = function() {
   if (zxingReader) { try { zxingReader.reset(); } catch(e){} zxingReader = null; }
+  // Video-Stream stoppen
+  const vid = document.getElementById('zxing-video');
+  if (vid?.srcObject) { vid.srcObject.getTracks().forEach(t => t.stop()); vid.srcObject = null; }
   window._torchOn = false;
   const tb = document.getElementById('torchBtn');
   if (tb) { tb.textContent='🔦 Licht'; tb.style.background='#333'; }
-  document.getElementById('quagga-container').innerHTML = '';
   document.getElementById('detectedBar').style.display = 'none';
   document.getElementById('camModal').classList.remove('open');
 };
