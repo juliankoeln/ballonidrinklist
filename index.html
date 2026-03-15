@@ -57,6 +57,7 @@ window.addEventListener('offline', () => {
 <!-- Barcode scanner (Quagga2 - besser auf iPhone/Android) -->
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
+<script src="https://unpkg.com/@zxing/browser@0.1.4/umd/index.min.js"></script>
 
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&display=swap');
@@ -899,7 +900,7 @@ select.fi2{appearance:none}
         <strong style="color:var(--text)">Claude</strong> · KI-Assistent von Anthropic
       </p>
       <p style="font-size:11px;color:var(--muted);margin-top:10px;letter-spacing:1px">
-        Version 0.73
+        Version 0.74
       </p>
     </div>
     <button class="btn btn-surface" style="width:100%;margin-top:16px" onclick="document.getElementById('impressumModal').classList.remove('open')">Schließen</button>
@@ -1963,17 +1964,17 @@ async function startZxing() {
   if (zxingReader) { try { zxingReader.reset(); } catch(e){} zxingReader = null; }
 
   try {
-    if (typeof ZXing === 'undefined') {
+    if (typeof ZXingBrowser === 'undefined') {
       document.getElementById('camStatus').textContent = '⚠️ Scanner lädt noch…';
       setTimeout(startZxing, 1000);
       return;
     }
 
-    const hints = new Map();
-    hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
-    zxingReader = new ZXing.BrowserMultiFormatReader(hints);
+    // Korrekte API: ZXingBrowser.BrowserMultiFormatReader
+    zxingReader = new ZXingBrowser.BrowserMultiFormatReader();
 
-    const devices = await zxingReader.listVideoInputDevices();
+    // Geräteliste: statische Methode auf BrowserCodeReader
+    const devices = await ZXingBrowser.BrowserCodeReader.listVideoInputDevices();
     let deviceId = undefined;
     if (devices.length > 0) {
       const back = devices.find(d => /back|rear|environment|rück/i.test(d.label));
@@ -1984,7 +1985,9 @@ async function startZxing() {
 
     document.getElementById('camStatus').textContent = '🔍 Barcode in den Rahmen halten…';
 
-    zxingReader.decodeFromVideoDevice(deviceId, 'zxing-video', (result, err) => {
+    // controls zurückgeben für sauberes Stoppen
+    const videoEl = document.getElementById('zxing-video');
+    zxingReader.decodeFromVideoDevice(deviceId, videoEl, (result, err) => {
       if (!result) return;
       const code = result.getText();
       if (!code) return;
