@@ -54,10 +54,10 @@ window.addEventListener('offline', () => {
   window.__fb = { db, ref, set, onValue, push, remove, update, connected };
 </script>
 
-<!-- Barcode scanner (ZXing - besser auf iPhone/Android) -->
+<!-- Barcode scanner (ZXing - rotation-unabhängig) -->
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.4/umd/index.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.19.1/umd/index.min.js"></script>
+<script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
+<script src="https://unpkg.com/@zxing/browser@0.1.4/umd/index.min.js"></script>
 
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&display=swap');
@@ -1947,89 +1947,86 @@ document.getElementById('delModal').addEventListener('click', e => {
   if (e.target===document.getElementById('delModal')) closeDelModal();
 });
 
-// ── CAMERA BARCODE (ZXing – besser auf iPhone/Android) ───────────────────────
-let zxingReader = null;
-let zxingRunning = false;
-let lastScanned = '';
+// ── CAMERA BARCODE (ZXing – rotation-unabhängig) ─────────────────────────────
+let zxingReader   = null;
+let zxingControls = null;
+let lastScanned   = '';
 let lastScannedTime = 0;
 let camFacingBack = true;
 
 window.openCamera = async function() {
   document.getElementById('camModal').classList.add('open');
-  document.getElementById('camStatus').textContent = '📷 Kamera-Berechtigung wird angefragt…';
+  document.getElementById('camStatus').textContent = '📷 Kamera wird gestartet…';
   document.getElementById('detectedBar').style.display = 'none';
   await startZxing();
 };
 
 async function startZxing() {
-  // Alten Reader stoppen
-  if (zxingReader) {
-    try { await zxingReader.reset(); } catch(e) {}
-    zxingReader = null;
-  }
-  zxingRunning = false;
+  // Vorherigen Reader sauber stoppen
+  if (zxingControls) { try { zxingControls.stop(); } catch(e){} zxingControls = null; }
+  if (zxingReader)   { try { zxingReader.reset();   } catch(e){} zxingReader   = null; }
 
   try {
-    const hints = new Map();
-    const formats = [
-      ZXingBrowser.BarcodeFormat?.EAN_13,
-      ZXingBrowser.BarcodeFormat?.EAN_8,
-      ZXingBrowser.BarcodeFormat?.UPC_A,
-      ZXingBrowser.BarcodeFormat?.UPC_E,
-      ZXingBrowser.BarcodeFormat?.CODE_128,
-      ZXingBrowser.BarcodeFormat?.CODE_39,
-    ].filter(Boolean);
+    // Prüfen ob ZXing geladen ist
+    if (typeof ZXingBrowser === 'undefined') {
+      document.getElementById('camStatus').textContent = '⚠️ Scanner-Bibliothek lädt noch – kurz warten…';
+      setTimeout(startZxing, 1000);
+      return;
+    }
 
-    if (formats.length) hints.set(2, formats); // DecodeHintType.POSSIBLE_FORMATS = 2
-
-    zxingReader = new ZXingBrowser.BrowserMultiFormatReader(hints);
     const videoEl = document.getElementById('zxing-video');
+    zxingReader = new ZXingBrowser.BrowserMultiFormatReader();
 
-    // Gerät auswählen – Rückkamera bevorzugen
+    // Rückkamera bevorzugen
     const devices = await ZXingBrowser.BrowserCodeReader.listVideoInputDevices();
     let deviceId = undefined;
-    if (devices.length > 1) {
-      const back = devices.find(d =>
-        /back|rear|environment|rück/i.test(d.label)
-      );
-      deviceId = camFacingBack ? (back?.deviceId || devices[devices.length-1].deviceId) : devices[0].deviceId;
+    if (devices.length > 0) {
+      if (camFacingBack) {
+        const back = devices.find(d => /back|rear|environment|rück/i.test(d.label));
+        deviceId = back ? back.deviceId : devices[devices.length - 1].deviceId;
+      } else {
+        const front = devices.find(d => /front|user|face|vorder/i.test(d.label));
+        deviceId = front ? front.deviceId : devices[0].deviceId;
+      }
     }
 
     document.getElementById('camStatus').textContent = '🔍 Barcode in den Rahmen halten…';
-    zxingRunning = true;
 
-    await zxingReader.decodeFromVideoDevice(deviceId, videoEl, (result, err) => {
-      if (!result) return;
-      const code = result.getText();
-      if (!code) return;
+    zxingControls = await zxingReader.decodeFromVideoDevice(
+      deviceId,
+      videoEl,
+      (result, err) => {
+        if (!result) return;
+        const code = result.getText();
+        if (!code) return;
 
-      // 3-Sekunden-Sperre gegen Doppelscan
-      const now = Date.now();
-      if (code === lastScanned && now - lastScannedTime < 3000) return;
-      lastScanned = code;
-      lastScannedTime = now;
+        // 3-Sekunden-Sperre gegen Doppelscan
+        const now = Date.now();
+        if (code === lastScanned && now - lastScannedTime < 3000) return;
+        lastScanned = code;
+        lastScannedTime = now;
 
-      // Vibration
-      if (navigator.vibrate) navigator.vibrate(80);
+        // Vibration
+        if (navigator.vibrate) navigator.vibrate(80);
 
-      // Anzeigen
-      document.getElementById('detectedCode').textContent = code;
-      document.getElementById('detectedBar').style.display = 'block';
-      document.getElementById('camStatus').textContent = '✅ Barcode erkannt!';
+        // Anzeigen
+        document.getElementById('detectedCode').textContent = code;
+        document.getElementById('detectedBar').style.display = 'block';
+        document.getElementById('camStatus').textContent = '✅ Barcode erkannt!';
 
-      setTimeout(() => {
-        closeCamera();
-        bIn.value = code;
-        doScan();
-      }, 600);
-    });
+        setTimeout(() => {
+          closeCamera();
+          bIn.value = code;
+          doScan();
+        }, 600);
+      }
+    );
 
   } catch(err) {
-    let msg = '⚠️ ' + (err.message || err);
-    if (err.name === 'NotAllowedError' || (err.message||'').includes('Permission'))
+    let msg = '⚠️ ' + (err.message || String(err));
+    if (err.name === 'NotAllowedError' || (err.message||'').includes('ermission'))
       msg = '⛔ Kamera verweigert – bitte in Einstellungen erlauben.';
     document.getElementById('camStatus').textContent = msg;
-    zxingRunning = false;
   }
 }
 
@@ -2038,7 +2035,6 @@ window.toggleTorch = async function() {
   window._torchOn = !window._torchOn;
   document.getElementById('torchBtn').textContent = window._torchOn ? '🔦 Licht aus' : '🔦 Licht';
   document.getElementById('torchBtn').style.background = window._torchOn ? '#f97316' : '#333';
-  // Torch über MediaStream Track direkt ansteuern
   try {
     const vid = document.getElementById('zxing-video');
     if (vid?.srcObject) {
@@ -2049,17 +2045,15 @@ window.toggleTorch = async function() {
     }
   } catch(e) { toast('Taschenlampe nicht verfügbar auf diesem Gerät','e'); }
 };
+
 window.switchCam = function() {
   camFacingBack = !camFacingBack;
   startZxing();
 };
 
 window.closeCamera = function() {
-  if (zxingReader) {
-    try { zxingReader.reset(); } catch(e) {}
-    zxingReader = null;
-  }
-  zxingRunning = false;
+  if (zxingControls) { try { zxingControls.stop(); } catch(e){} zxingControls = null; }
+  if (zxingReader)   { try { zxingReader.reset();   } catch(e){} zxingReader   = null; }
   window._torchOn = false;
   const tb = document.getElementById('torchBtn');
   if (tb) { tb.textContent='🔦 Licht'; tb.style.background='#333'; }
