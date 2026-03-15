@@ -902,7 +902,7 @@ select.fi2{appearance:none}
         <strong style="color:var(--text)">Claude</strong> · KI-Assistent von Anthropic
       </p>
       <p style="font-size:11px;color:var(--muted);margin-top:10px;letter-spacing:1px">
-        Version 0.79
+        Version 0.80
       </p>
     </div>
     <button class="btn btn-surface" style="width:100%;margin-top:16px" onclick="document.getElementById('impressumModal').classList.remove('open')">Schließen</button>
@@ -2089,43 +2089,34 @@ window.tapFocus = async function(e) {
     canvas.width  = vid.videoWidth  || 1280;
     canvas.height = vid.videoHeight || 720;
     const ctx = canvas.getContext('2d');
-
-    // Kontrast-Filter auch auf Canvas anwenden
     ctx.filter = 'contrast(1.8) brightness(1.2) saturate(0.2)';
     ctx.drawImage(vid, 0, 0, canvas.width, canvas.height);
     ctx.filter = 'none';
 
-    // ZXing auf dem Canvas-Bild ausführen
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const luminanceSource = new ZXing.HTMLCanvasElementLuminanceSource(canvas);
-    const binaryBitmap   = new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(luminanceSource));
-
-    const hints = new Map();
-    hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
-    const reader = new ZXing.MultiFormatReader();
-    reader.setHints(hints);
-
+    // ZXing decodeFromCanvas – korrekte API
+    const snapReader = new ZXing.BrowserMultiFormatReader();
     try {
-      const result = reader.decode(binaryBitmap);
+      const result = await snapReader.decodeFromCanvas(canvas);
       const code = result.getText();
       if (code) {
         ring.style.border = '2px solid #22c55e';
         document.getElementById('detectedCode').textContent = code;
         document.getElementById('detectedBar').style.display = 'block';
         document.getElementById('camStatus').textContent = '✅ Barcode erkannt!';
-        if (navigator.vibrate) navigator.vibrate(80);
-        const now = Date.now();
         lastScanned = code;
-        lastScannedTime = now;
+        lastScannedTime = Date.now();
         setTimeout(() => { closeCamera(); bIn.value = code; doScan(); }, 600);
         return;
       }
     } catch(decodeErr) {
-      // Kein Barcode im Snapshot – weiter mit Live-Scan
-      document.getElementById('camStatus').textContent = '🔍 Nicht erkannt – nochmal tippen oder warten…';
+      document.getElementById('camStatus').textContent = '🔍 Nicht erkannt – nochmal tippen…';
       setTimeout(() => {
         document.getElementById('camStatus').textContent = '🔍 Barcode in den Rahmen halten…';
       }, 2000);
+    }
+  } catch(err) {
+    document.getElementById('camStatus').textContent = '🔍 Barcode in den Rahmen halten…';
+  }, 2000);
     }
   } catch(err) {
     document.getElementById('camStatus').textContent = '🔍 Barcode in den Rahmen halten…';
