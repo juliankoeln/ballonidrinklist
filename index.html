@@ -851,6 +851,7 @@ select.fi2{appearance:none}
   <div class="modal" style="padding:0;border-radius:20px 20px 0 0;overflow:hidden;background:#000">
     <div id="camWrap" style="position:relative;width:100%;background:#000;min-height:220px">
       <video id="zxing-video" style="width:100%;max-height:55vh;object-fit:cover;display:block" autoplay muted playsinline></video>
+      <canvas id="zxing-canvas" style="display:none"></canvas>
       <!-- Scan-Rahmen Overlay -->
       <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none">
         <div style="position:relative;width:72%;max-width:280px;height:100px">
@@ -868,6 +869,7 @@ select.fi2{appearance:none}
     <div id="camStatus" style="background:#111;color:var(--muted);text-align:center;padding:10px 14px;font-size:13px">Kamera wird gestartet…</div>
     <div style="background:#000;padding:10px 14px;display:flex;gap:8px">
       <button id="torchBtn" onclick="toggleTorch()" style="background:#333;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:13px;cursor:pointer">🔦 Licht</button>
+      <button id="contrastBtn" onclick="toggleContrast()" style="background:#333;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:13px;cursor:pointer">🔆 Kontrast</button>
       <button class="btn btn-surface" style="flex:1;font-size:13px" onclick="switchCam()">🔄 Wechseln</button>
       <button class="btn btn-surface" style="flex:1;font-size:13px" onclick="closeCamera()">✕ Schließen</button>
     </div>
@@ -899,7 +901,7 @@ select.fi2{appearance:none}
         <strong style="color:var(--text)">Claude</strong> · KI-Assistent von Anthropic
       </p>
       <p style="font-size:11px;color:var(--muted);margin-top:10px;letter-spacing:1px">
-        Version 0.74
+        Version 0.75
       </p>
     </div>
     <button class="btn btn-surface" style="width:100%;margin-top:16px" onclick="document.getElementById('impressumModal').classList.remove('open')">Schließen</button>
@@ -1991,6 +1993,18 @@ async function startZxing() {
 
     document.getElementById('camStatus').textContent = '🔍 Barcode in den Rahmen halten…';
 
+    // Timer – wenn nach 5s nichts erkannt → Hinweis anzeigen
+    let noScanHint = setTimeout(() => {
+      if (document.getElementById('camModal').classList.contains('open')) {
+        document.getElementById('camStatus').textContent = '💡 Tipp: Kamera näher ran, Winkel ändern oder Kontrast aktivieren';
+        setTimeout(() => {
+          if (document.getElementById('camModal').classList.contains('open')) {
+            document.getElementById('camStatus').textContent = '🔍 Barcode in den Rahmen halten…';
+          }
+        }, 4000);
+      }
+    }, 5000);
+
     zxingReader.decodeFromVideoDevice(deviceId, 'zxing-video', (result, err) => {
         if (!result) return;
         const code = result.getText();
@@ -2002,6 +2016,8 @@ async function startZxing() {
         lastScanned = code;
         lastScannedTime = now;
 
+        // Timer stoppen
+        clearTimeout(noScanHint);
         // Vibration
         if (navigator.vibrate) navigator.vibrate(80);
 
@@ -2026,6 +2042,21 @@ async function startZxing() {
 }
 
 window._torchOn = false;
+window._contrastOn = false;
+window.toggleContrast = function() {
+  window._contrastOn = !window._contrastOn;
+  const vid = document.getElementById('zxing-video');
+  const btn = document.getElementById('contrastBtn');
+  if (window._contrastOn) {
+    vid.style.filter = 'contrast(2) brightness(1.2) saturate(0)';
+    btn.style.background = '#f97316';
+    btn.textContent = '🔆 Kontrast aus';
+  } else {
+    vid.style.filter = 'none';
+    btn.style.background = '#333';
+    btn.textContent = '🔆 Kontrast';
+  }
+};
 window.toggleTorch = async function() {
   window._torchOn = !window._torchOn;
   document.getElementById('torchBtn').textContent = window._torchOn ? '🔦 Licht aus' : '🔦 Licht';
@@ -2051,7 +2082,11 @@ window.closeCamera = function() {
   // Video-Stream stoppen
   const vid = document.getElementById('zxing-video');
   if (vid?.srcObject) { vid.srcObject.getTracks().forEach(t => t.stop()); vid.srcObject = null; }
+  if (vid) vid.style.filter = 'none';
   window._torchOn = false;
+  window._contrastOn = false;
+  const cb = document.getElementById('contrastBtn');
+  if (cb) { cb.textContent='🔆 Kontrast'; cb.style.background='#333'; }
   const tb = document.getElementById('torchBtn');
   if (tb) { tb.textContent='🔦 Licht'; tb.style.background='#333'; }
   document.getElementById('detectedBar').style.display = 'none';
