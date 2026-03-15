@@ -54,9 +54,10 @@ window.addEventListener('offline', () => {
   window.__fb = { db, ref, set, onValue, push, remove, update, connected };
 </script>
 
-<!-- Barcode scanner (Quagga2 - besser auf iPhone/Android) -->
+<!-- Barcode scanner (ZXing - besser auf iPhone/Android) -->
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2@1.2.6/dist/quagga.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.4/umd/index.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.19.1/umd/index.min.js"></script>
 
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&display=swap');
@@ -342,8 +343,8 @@ select.fi2{appearance:none}
 <!-- LOGIN SCREEN -->
 <div id="loginScreen">
   <div class="login-box">
-    <div class="login-logo">Balloni</div>
-    <div class="login-sub">Getränkeliste</div>
+    <div class="login-logo">Drinkventory</div>
+    <div class="login-sub">Getränkelagerverwaltung</div>
     <div id="loginStep1">
       <label class="login-label">Benutzerkürzel (3 Buchstaben)</label>
       <input class="login-input" type="text" id="userKuerzel" placeholder="z.B. MAX" maxlength="3"
@@ -457,9 +458,86 @@ select.fi2{appearance:none}
     </div>
   </div>
 </div>
+
+<!-- AGB MODAL -->
+<div class="overlay" id="agbModal" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal" style="max-width:480px;max-height:85vh;overflow-y:auto">
+    <h2 style="font-family:'Bebas Neue',sans-serif;letter-spacing:2px;font-size:22px">Allgemeine Geschäftsbedingungen</h2>
+    <p style="font-size:11px;color:var(--muted);margin-bottom:12px">Drinkventory · Stand: März 2026</p>
+    <div style="font-size:12px;color:var(--text);line-height:1.7">
+
+      <strong style="font-size:13px">§ 1 Geltungsbereich</strong>
+      <p style="margin:6px 0 12px">Diese AGB gelten für alle Verträge zwischen der BALLONI Hallen und Veranstaltungs GmbH, Ehrenfeldgürtel 88–94, 50823 Köln-Ehrenfeld (nachfolgend „Anbieter") und den Nutzern der Software „Drinkventory" (nachfolgend „Kunde").</p>
+
+      <strong style="font-size:13px">§ 2 Leistungsgegenstand</strong>
+      <p style="margin:6px 0 12px">Der Anbieter stellt dem Kunden die webbasierte Getränkelagerverwaltung „Drinkventory" bereit. Der Funktionsumfang umfasst Artikelverwaltung, Buchungen, MHD-Verwaltung, Barcode-Scanner, Excel-Export und Benutzerverwaltung. Änderungen des Funktionsumfangs bleiben vorbehalten.</p>
+
+      <strong style="font-size:13px">§ 3 Vertragsschluss und Laufzeit</strong>
+      <p style="margin:6px 0 12px">Der Vertrag kommt durch Registrierung und Freischaltung zustande. Mindestlaufzeit: 1 Monat, automatische Verlängerung um jeweils einen Monat. Kündigung: 14 Tage zum Monatsende in Textform.</p>
+
+      <strong style="font-size:13px">§ 4 Nutzungsrechte</strong>
+      <p style="margin:6px 0 12px">Der Kunde erhält ein nicht-exklusives, nicht übertragbares Nutzungsrecht für die Dauer des Vertrags. Zugangsdaten dürfen nicht an Dritte außerhalb des eigenen Betriebs weitergegeben werden.</p>
+
+      <strong style="font-size:13px">§ 5 Vergütung</strong>
+      <p style="margin:6px 0 12px">Die Vergütung richtet sich nach dem gültigen Preisblatt. Preisänderungen werden 30 Tage vorab angekündigt. Zahlung monatlich im Voraus. Bei Zahlungsverzug über 14 Tage kann der Zugang gesperrt werden.</p>
+
+      <strong style="font-size:13px">§ 6 Verfügbarkeit</strong>
+      <p style="margin:6px 0 12px">Der Anbieter strebt 95 % Verfügbarkeit p.a. an. Ausgenommen sind Wartungsarbeiten und Ausfälle bei Drittdiensten (Google Firebase, Vercel).</p>
+
+      <strong style="font-size:13px">§ 7 Datensicherung</strong>
+      <p style="margin:6px 0 12px">Daten werden in Google Firebase (Europa West) gespeichert. Eine Garantie für vollständige Wiederherstellbarkeit besteht nicht. Der Kunde sollte regelmäßig Excel-Exporte als Sicherung erstellen.</p>
+
+      <strong style="font-size:13px">§ 8 Haftung</strong>
+      <p style="margin:6px 0 12px">Unbegrenzte Haftung bei Vorsatz, grober Fahrlässigkeit sowie Schäden an Leben, Körper und Gesundheit. Darüber hinaus ist die Haftung auf vorhersehbare Schäden begrenzt. Keine Haftung für Fehlbuchungen durch Nutzer oder Ausfälle von Drittdiensten.</p>
+
+      <strong style="font-size:13px">§ 9 Datenlöschung nach Vertragsende</strong>
+      <p style="margin:6px 0 12px">Alle Kundendaten werden innerhalb von 30 Tagen nach Vertragsende gelöscht. Der Kunde wird vorab per E-Mail informiert.</p>
+
+      <strong style="font-size:13px">§ 10 Schlussbestimmungen</strong>
+      <p style="margin:6px 0 12px">Es gilt deutsches Recht. Gerichtsstand: Köln. Salvatorische Klausel bei unwirksamen Bestimmungen.</p>
+    </div>
+    <button class="btn btn-surface" style="width:100%;margin-top:16px" onclick="document.getElementById('agbModal').classList.remove('open')">Schließen</button>
+  </div>
+</div>
+
+<!-- DATENSCHUTZ MODAL -->
+<div class="overlay" id="dseModal" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal" style="max-width:480px;max-height:85vh;overflow-y:auto">
+    <h2 style="font-family:'Bebas Neue',sans-serif;letter-spacing:2px;font-size:22px">Datenschutzerklärung</h2>
+    <p style="font-size:11px;color:var(--muted);margin-bottom:12px">Drinkventory · Stand: März 2026</p>
+    <div style="font-size:12px;color:var(--text);line-height:1.7">
+
+      <strong style="font-size:13px">1. Verantwortlicher</strong>
+      <p style="margin:6px 0 12px">BALLONI Hallen und Veranstaltungs GmbH<br>Vertreten durch: Sybille Hartung, Wilhelm Blume<br>Ehrenfeldgürtel 88–94, 50823 Köln-Ehrenfeld<br>Tel: +49 (0) 221-510 910 · <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="d0b9beb6bf90b2b1bcbcbfbeb9feb4b5">[email&#160;protected]</a></p>
+
+      <strong style="font-size:13px">2. Gespeicherte Daten</strong>
+      <p style="margin:6px 0 4px">Nutzerdaten: Benutzerkürzel, PIN, Name, Rolle, Buchungsaktionen mit Zeitstempel.</p>
+      <p style="margin:0 0 12px">Betriebsdaten: Artikelstammdaten, Buchungshistorie, MHD-Einträge, Bestelllisten.</p>
+
+      <strong style="font-size:13px">3. Speicherort & Drittanbieter</strong>
+      <p style="margin:6px 0 12px">Alle Daten werden in der Google Firebase Realtime Database (Serverstandort: Europa West, Belgien) gespeichert. Anbieter: Google Ireland Limited. Es besteht ein Auftragsverarbeitungsvertrag nach Art. 28 DSGVO. Weitere Infos: policies.google.com/privacy</p>
+
+      <strong style="font-size:13px">4. Rechtsgrundlage</strong>
+      <p style="margin:6px 0 12px">Art. 6 Abs. 1 lit. b DSGVO (Vertragserfüllung) und Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse).</p>
+
+      <strong style="font-size:13px">5. Speicherdauer</strong>
+      <p style="margin:6px 0 12px">Daten werden für die Vertragsdauer gespeichert und innerhalb von 30 Tagen nach Vertragsende gelöscht.</p>
+
+      <strong style="font-size:13px">6. Ihre Rechte (DSGVO)</strong>
+      <p style="margin:6px 0 12px">Auskunft · Berichtigung · Löschung · Einschränkung · Datenübertragbarkeit · Widerspruch.<br>Kontakt: <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="94fdfaf2fbd4f6f5f8f8fbfafdbaf0f1">[email&#160;protected]</a><br>Beschwerderecht bei der LDI NRW: www.ldi.nrw.de</p>
+
+      <strong style="font-size:13px">7. Cookies & lokale Speicherung</strong>
+      <p style="margin:6px 0 12px">Kein Tracking, keine Werbe-Cookies. Nur localStorage für Sitzungsdaten und Offline-Zwischenspeicher. Diese Daten verlassen das Gerät nicht.</p>
+
+      <strong style="font-size:13px">8. Datensicherheit</strong>
+      <p style="margin:6px 0 12px">Datenübertragung erfolgt verschlüsselt via HTTPS. Zugang ist durch Kürzel und PIN gesichert.</p>
+    </div>
+    <button class="btn btn-surface" style="width:100%;margin-top:16px" onclick="document.getElementById('dseModal').classList.remove('open')">Schließen</button>
+  </div>
+</div>
 <!-- HEADER -->
 <header>
-  <div style="flex:1"><span style="font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:2px;color:#1a1a1a">Balloni</span> <span style="font-size:13px;font-weight:500;color:#888;letter-spacing:1px">Getränkeliste</span></div>
+  <div style="flex:1"><span style="font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:2px;color:#1a1a1a">Drinkventory</span></div>
   <div style="flex:1"></div>
   <div class="hstats">
     <div><b id="stP">0</b>Artikel</div>
@@ -552,7 +630,11 @@ select.fi2{appearance:none}
     <div class="sec-title" style="margin-top:16px">Top 5 Eingang <span class="badge">letzte 30 Tage</span></div>
     <div id="dashTop"></div>
     <div style="text-align:center;margin-top:28px;padding-bottom:8px">
-      <span onclick="document.getElementById('impressumModal').classList.add('open')"
+      <span onclick="document.getElementById('agbModal').classList.add('open')" style="cursor:pointer;color:var(--muted);font-size:11px">AGB</span>
+        <span style="color:var(--muted)">·</span>
+        <span onclick="document.getElementById('dseModal').classList.add('open')" style="cursor:pointer;color:var(--muted);font-size:11px">Datenschutz</span>
+        <span style="color:var(--muted)">·</span>
+        <span onclick="document.getElementById('impressumModal').classList.add('open')"
         style="font-size:11px;color:var(--muted);cursor:pointer;text-decoration:underline;text-underline-offset:3px">
         Impressum
       </span>
@@ -769,8 +851,7 @@ select.fi2{appearance:none}
 <div class="overlay" id="camModal">
   <div class="modal" style="padding:0;border-radius:20px 20px 0 0;overflow:hidden;background:#000">
     <div id="camWrap" style="position:relative;width:100%;background:#000;min-height:220px">
-      <!-- Quagga rendert hier rein -->
-      <div id="quagga-container" style="width:100%;overflow:hidden;max-height:55vh"></div>
+      <video id="zxing-video" style="width:100%;max-height:55vh;object-fit:cover;display:block" autoplay muted playsinline></video>
       <!-- Scan-Rahmen Overlay -->
       <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none">
         <div style="position:relative;width:72%;max-width:280px;height:100px">
@@ -787,8 +868,9 @@ select.fi2{appearance:none}
     </div>
     <div id="camStatus" style="background:#111;color:var(--muted);text-align:center;padding:10px 14px;font-size:13px">Kamera wird gestartet…</div>
     <div style="background:#000;padding:10px 14px;display:flex;gap:8px">
-      <button class="btn btn-surface" style="flex:1;font-size:13px" onclick="switchCam()">🔄 Kamera wechseln</button>
-      <button class="btn btn-surface" style="flex:1;font-size:13px" onclick="closeCamera()">Abbrechen</button>
+      <button id="torchBtn" onclick="toggleTorch()" style="background:#333;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:13px;cursor:pointer">🔦 Licht</button>
+      <button class="btn btn-surface" style="flex:1;font-size:13px" onclick="switchCam()">🔄 Wechseln</button>
+      <button class="btn btn-surface" style="flex:1;font-size:13px" onclick="closeCamera()">✕ Schließen</button>
     </div>
   </div>
 </div>
@@ -818,7 +900,7 @@ select.fi2{appearance:none}
         <strong style="color:var(--text)">Claude</strong> · KI-Assistent von Anthropic
       </p>
       <p style="font-size:11px;color:var(--muted);margin-top:10px;letter-spacing:1px">
-        Version 0.70
+        Version 0.73
       </p>
     </div>
     <button class="btn btn-surface" style="width:100%;margin-top:16px" onclick="document.getElementById('impressumModal').classList.remove('open')">Schließen</button>
@@ -836,7 +918,7 @@ select.fi2{appearance:none}
   </div>
 </div>
 
-<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script type="module">
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script type="module">
 
 // ── MHD MONATSFARBEN ──────────────────────────────────────────────────────────
 const MHD_FARBEN = [
@@ -1865,8 +1947,9 @@ document.getElementById('delModal').addEventListener('click', e => {
   if (e.target===document.getElementById('delModal')) closeDelModal();
 });
 
-// ── CAMERA BARCODE (Quagga2) ──────────────────────────────────────────────────
-let quaggaRunning = false;
+// ── CAMERA BARCODE (ZXing – besser auf iPhone/Android) ───────────────────────
+let zxingReader = null;
+let zxingRunning = false;
 let lastScanned = '';
 let lastScannedTime = 0;
 let camFacingBack = true;
@@ -1875,111 +1958,79 @@ window.openCamera = async function() {
   document.getElementById('camModal').classList.add('open');
   document.getElementById('camStatus').textContent = '📷 Kamera-Berechtigung wird angefragt…';
   document.getElementById('detectedBar').style.display = 'none';
-  startQuagga();
+  await startZxing();
 };
 
-function startQuagga() {
-  if (quaggaRunning) { Quagga.stop(); quaggaRunning = false; }
+async function startZxing() {
+  // Alten Reader stoppen
+  if (zxingReader) {
+    try { await zxingReader.reset(); } catch(e) {}
+    zxingReader = null;
+  }
+  zxingRunning = false;
 
-  const container = document.getElementById('quagga-container');
-  container.innerHTML = ''; // reset
+  try {
+    const hints = new Map();
+    const formats = [
+      ZXingBrowser.BarcodeFormat?.EAN_13,
+      ZXingBrowser.BarcodeFormat?.EAN_8,
+      ZXingBrowser.BarcodeFormat?.UPC_A,
+      ZXingBrowser.BarcodeFormat?.UPC_E,
+      ZXingBrowser.BarcodeFormat?.CODE_128,
+      ZXingBrowser.BarcodeFormat?.CODE_39,
+    ].filter(Boolean);
 
-  Quagga.init({
-    inputStream: {
-      name: 'Live',
-      type: 'LiveStream',
-      target: container,
-      constraints: {
-        facingMode: camFacingBack ? 'environment' : 'user',
-        width:  { min: 640, ideal: 1920 },
-        height: { min: 480, ideal: 1080 },
-        advanced: [{ torch: window._torchOn || false }],
-      },
-    },
-    decoder: {
-      readers: [
-        'ean_reader',       // EAN-13 (Standard Supermarkt)
-        'ean_8_reader',     // EAN-8
-        'upc_reader',       // UPC-A
-        'upc_e_reader',     // UPC-E
-        'code_128_reader',  // Code 128
-        'code_39_reader',   // Code 39
-      ],
-      multiple: false,
-    },
-    locate: true,
-    frequency: 20,
-    halfSample: true,
-  }, function(err) {
-    if (err) {
-      let msg = '⚠️ ' + err.message;
-      if (err.name === 'NotAllowedError' || (err.message||'').includes('Permission'))
-        msg = '⛔ Kamera verweigert – bitte in Einstellungen erlauben.';
-      document.getElementById('camStatus').textContent = msg;
-      return;
+    if (formats.length) hints.set(2, formats); // DecodeHintType.POSSIBLE_FORMATS = 2
+
+    zxingReader = new ZXingBrowser.BrowserMultiFormatReader(hints);
+    const videoEl = document.getElementById('zxing-video');
+
+    // Gerät auswählen – Rückkamera bevorzugen
+    const devices = await ZXingBrowser.BrowserCodeReader.listVideoInputDevices();
+    let deviceId = undefined;
+    if (devices.length > 1) {
+      const back = devices.find(d =>
+        /back|rear|environment|rück/i.test(d.label)
+      );
+      deviceId = camFacingBack ? (back?.deviceId || devices[devices.length-1].deviceId) : devices[0].deviceId;
     }
-    Quagga.start();
-    quaggaRunning = true;
+
     document.getElementById('camStatus').textContent = '🔍 Barcode in den Rahmen halten…';
+    zxingRunning = true;
 
-    // Video-Element von Quagga stylen
-    const vid = container.querySelector('video');
-    if (vid) {
-      vid.style.cssText = 'width:100%;max-height:55vh;object-fit:cover;display:block';
-    }
-    const canvas = container.querySelector('canvas');
-    if (canvas) canvas.style.display = 'none'; // debug canvas ausblenden
-  });
+    await zxingReader.decodeFromVideoDevice(deviceId, videoEl, (result, err) => {
+      if (!result) return;
+      const code = result.getText();
+      if (!code) return;
 
-  // Barcode erkannt
-  Quagga.offDetected(); // alte listener entfernen
-  let confirmCode = '';
-  let confirmCount = 0;
-  const NEEDED = 2; // wie oft muss der gleiche Code hintereinander erkannt werden
+      // 3-Sekunden-Sperre gegen Doppelscan
+      const now = Date.now();
+      if (code === lastScanned && now - lastScannedTime < 3000) return;
+      lastScanned = code;
+      lastScannedTime = now;
 
-  Quagga.onDetected(function(result) {
-    const code = result?.codeResult?.code;
-    if (!code) return;
+      // Vibration
+      if (navigator.vibrate) navigator.vibrate(80);
 
-    // Gleichen Code nicht sofort zweimal scannen (3 Sek. Sperre nach Erfolg)
-    const now = Date.now();
-    if (code === lastScanned && now - lastScannedTime < 3000) return;
+      // Anzeigen
+      document.getElementById('detectedCode').textContent = code;
+      document.getElementById('detectedBar').style.display = 'block';
+      document.getElementById('camStatus').textContent = '✅ Barcode erkannt!';
 
-    // Bestätigungs-Zähler
-    if (code === confirmCode) {
-      confirmCount++;
-    } else {
-      confirmCode = code;
-      confirmCount = 1;
-    }
+      setTimeout(() => {
+        closeCamera();
+        bIn.value = code;
+        doScan();
+      }, 600);
+    });
 
-    // Fortschritt anzeigen
-    const dots = '●'.repeat(confirmCount) + '○'.repeat(Math.max(0, NEEDED - confirmCount));
-    document.getElementById('camStatus').textContent = `🔍 Barcode halten… ${dots}`;
-
-    if (confirmCount < NEEDED) return; // noch nicht sicher genug
-
-    // Jetzt sicher – akzeptieren
-    lastScanned = code;
-    lastScannedTime = now;
-    confirmCode = '';
-    confirmCount = 0;
-
-    // Vibration als Feedback (Android/iPhone)
-    if (navigator.vibrate) navigator.vibrate(80);
-
-    // Anzeigen
-    document.getElementById('detectedCode').textContent = code;
-    document.getElementById('detectedBar').style.display = 'block';
-    document.getElementById('camStatus').textContent = '✅ Barcode erkannt!';
-
-    // Kurz warten dann schließen & verarbeiten
-    setTimeout(() => {
-      closeCamera();
-      bIn.value = code;
-      doScan();
-    }, 600);
-  });
+  } catch(err) {
+    let msg = '⚠️ ' + (err.message || err);
+    if (err.name === 'NotAllowedError' || (err.message||'').includes('Permission'))
+      msg = '⛔ Kamera verweigert – bitte in Einstellungen erlauben.';
+    document.getElementById('camStatus').textContent = msg;
+    zxingRunning = false;
+  }
 }
 
 window._torchOn = false;
@@ -1989,7 +2040,7 @@ window.toggleTorch = async function() {
   document.getElementById('torchBtn').style.background = window._torchOn ? '#f97316' : '#333';
   // Torch über MediaStream Track direkt ansteuern
   try {
-    const vid = document.querySelector('#quagga-container video');
+    const vid = document.getElementById('zxing-video');
     if (vid?.srcObject) {
       const track = vid.srcObject.getVideoTracks()[0];
       if (track?.getCapabilities()?.torch !== undefined) {
@@ -2000,14 +2051,15 @@ window.toggleTorch = async function() {
 };
 window.switchCam = function() {
   camFacingBack = !camFacingBack;
-  startQuagga();
+  startZxing();
 };
 
 window.closeCamera = function() {
-  if (quaggaRunning) {
-    try { Quagga.stop(); } catch(e) {}
-    quaggaRunning = false;
+  if (zxingReader) {
+    try { zxingReader.reset(); } catch(e) {}
+    zxingReader = null;
   }
+  zxingRunning = false;
   window._torchOn = false;
   const tb = document.getElementById('torchBtn');
   if (tb) { tb.textContent='🔦 Licht'; tb.style.background='#333'; }
@@ -2301,7 +2353,7 @@ window.exportBestellung = async function() {
     rows.push([pos.name, einh, pos.k||'', pos.f||'', pos.note||'']);
   });
   rows.push(['']);
-  rows.push(['Erstellt mit Balloni Getränkeliste']);
+  rows.push(['Erstellt mit Drinkventory']);
 
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.aoa_to_sheet(rows);
@@ -2712,10 +2764,4 @@ if (savedSession) {
 </script>
 <div class="overlay" id="dashPopup" onclick="if(event.target===this)this.classList.remove('open')">
   <div class="modal" style="max-width:420px">
-    <h2 id="dashPopupTitle" style="font-family:'Bebas Neue',sans-serif;letter-spacing:2px;font-size:22px;margin-bottom:14px"></h2>
-    <div id="dashPopupList"></div>
-    <button class="btn btn-surface" style="width:100%;margin-top:14px" onclick="document.getElementById('dashPopup').classList.remove('open')">Schließen</button>
-  </div>
-</div>
-</body>
-</html>
+    <h2 id="dashP
