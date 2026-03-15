@@ -57,7 +57,6 @@ window.addEventListener('offline', () => {
 <!-- Barcode scanner (ZXing - rotation-unabhängig) -->
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 <script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
-<script src="https://unpkg.com/@zxing/browser@0.1.4/umd/index.min.js"></script>
 
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&display=swap');
@@ -900,7 +899,7 @@ select.fi2{appearance:none}
         <strong style="color:var(--text)">Claude</strong> · KI-Assistent von Anthropic
       </p>
       <p style="font-size:11px;color:var(--muted);margin-top:10px;letter-spacing:1px">
-        Version 0.73
+        Version 0.73b
       </p>
     </div>
     <button class="btn btn-surface" style="width:100%;margin-top:16px" onclick="document.getElementById('impressumModal').classList.remove('open')">Schließen</button>
@@ -1949,7 +1948,6 @@ document.getElementById('delModal').addEventListener('click', e => {
 
 // ── CAMERA BARCODE (ZXing – rotation-unabhängig) ─────────────────────────────
 let zxingReader   = null;
-let zxingControls = null;
 let lastScanned   = '';
 let lastScannedTime = 0;
 let camFacingBack = true;
@@ -1963,22 +1961,23 @@ window.openCamera = async function() {
 
 async function startZxing() {
   // Vorherigen Reader sauber stoppen
-  if (zxingControls) { try { zxingControls.stop(); } catch(e){} zxingControls = null; }
-  if (zxingReader)   { try { zxingReader.reset();   } catch(e){} zxingReader   = null; }
+  if (zxingReader) { try { zxingReader.reset(); } catch(e){} zxingReader = null; }
 
   try {
     // Prüfen ob ZXing geladen ist
-    if (typeof ZXingBrowser === 'undefined') {
+    if (typeof ZXing === 'undefined') {
       document.getElementById('camStatus').textContent = '⚠️ Scanner-Bibliothek lädt noch – kurz warten…';
       setTimeout(startZxing, 1000);
       return;
     }
 
     const videoEl = document.getElementById('zxing-video');
-    zxingReader = new ZXingBrowser.BrowserMultiFormatReader();
+    const hints = new Map();
+    hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+    zxingReader = new ZXing.BrowserMultiFormatReader(hints);
 
     // Rückkamera bevorzugen
-    const devices = await ZXingBrowser.BrowserCodeReader.listVideoInputDevices();
+    const devices = await zxingReader.getVideoInputDevices();
     let deviceId = undefined;
     if (devices.length > 0) {
       if (camFacingBack) {
@@ -1992,10 +1991,7 @@ async function startZxing() {
 
     document.getElementById('camStatus').textContent = '🔍 Barcode in den Rahmen halten…';
 
-    zxingControls = await zxingReader.decodeFromVideoDevice(
-      deviceId,
-      videoEl,
-      (result, err) => {
+    zxingReader.decodeFromVideoDevice(deviceId, 'zxing-video', (result, err) => {
         if (!result) return;
         const code = result.getText();
         if (!code) return;
@@ -2019,8 +2015,7 @@ async function startZxing() {
           bIn.value = code;
           doScan();
         }, 600);
-      }
-    );
+    });
 
   } catch(err) {
     let msg = '⚠️ ' + (err.message || String(err));
@@ -2052,8 +2047,7 @@ window.switchCam = function() {
 };
 
 window.closeCamera = function() {
-  if (zxingControls) { try { zxingControls.stop(); } catch(e){} zxingControls = null; }
-  if (zxingReader)   { try { zxingReader.reset();   } catch(e){} zxingReader   = null; }
+  if (zxingReader) { try { zxingReader.reset(); } catch(e){} zxingReader = null; }
   window._torchOn = false;
   const tb = document.getElementById('torchBtn');
   if (tb) { tb.textContent='🔦 Licht'; tb.style.background='#333'; }
