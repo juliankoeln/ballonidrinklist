@@ -850,7 +850,7 @@ select.fi2{appearance:none}
 <div class="overlay" id="camModal">
   <div class="modal" style="padding:0;border-radius:20px 20px 0 0;overflow:hidden;background:#000">
     <div id="camWrap" style="position:relative;width:100%;background:#000;min-height:220px">
-      <video id="zxing-video" style="width:100%;max-height:55vh;object-fit:cover;display:block" autoplay muted playsinline></video>
+      <video id="zxing-video" style="width:100%;max-height:55vh;object-fit:cover;display:block;filter:contrast(2) brightness(1.2) saturate(0)" autoplay muted playsinline></video>
       <canvas id="zxing-canvas" style="display:none"></canvas>
       <!-- Scan-Rahmen Overlay -->
       <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none">
@@ -869,7 +869,6 @@ select.fi2{appearance:none}
     <div id="camStatus" style="background:#111;color:var(--muted);text-align:center;padding:10px 14px;font-size:13px">Kamera wird gestartet…</div>
     <div style="background:#000;padding:10px 14px;display:flex;gap:8px">
       <button id="torchBtn" onclick="toggleTorch()" style="background:#333;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:13px;cursor:pointer">🔦 Licht</button>
-      <button id="contrastBtn" onclick="toggleContrast()" style="background:#333;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:13px;cursor:pointer">🔆 Kontrast</button>
       <button class="btn btn-surface" style="flex:1;font-size:13px" onclick="switchCam()">🔄 Wechseln</button>
       <button class="btn btn-surface" style="flex:1;font-size:13px" onclick="closeCamera()">✕ Schließen</button>
     </div>
@@ -901,7 +900,7 @@ select.fi2{appearance:none}
         <strong style="color:var(--text)">Claude</strong> · KI-Assistent von Anthropic
       </p>
       <p style="font-size:11px;color:var(--muted);margin-top:10px;letter-spacing:1px">
-        Version 0.75
+        Version 0.77
       </p>
     </div>
     <button class="btn btn-surface" style="width:100%;margin-top:16px" onclick="document.getElementById('impressumModal').classList.remove('open')">Schließen</button>
@@ -2004,6 +2003,27 @@ async function startZxing() {
         }, 4000);
       }
     }, 5000);
+
+    // Hohe Auflösung + Autofokus für kleine Barcodes
+    const videoEl2 = document.getElementById('zxing-video');
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          deviceId: deviceId ? { exact: deviceId } : undefined,
+          facingMode: camFacingBack ? 'environment' : 'user',
+          width:  { ideal: 1920 },
+          height: { ideal: 1080 },
+          focusMode: 'continuous',
+          zoom: 1.0,
+        }
+      });
+      videoEl2.srcObject = stream;
+      // Autofokus auf Track aktivieren falls möglich
+      const track = stream.getVideoTracks()[0];
+      if (track?.getCapabilities()?.focusMode?.includes('continuous')) {
+        await track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] });
+      }
+    } catch(e) { /* Fallback – ZXing öffnet selbst die Kamera */ }
 
     zxingReader.decodeFromVideoDevice(deviceId, 'zxing-video', (result, err) => {
         if (!result) return;
