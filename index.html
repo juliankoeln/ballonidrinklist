@@ -56,7 +56,7 @@ window.addEventListener('offline', () => {
 
 <!-- Barcode scanner (Quagga2 - besser auf iPhone/Android) -->
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2@1.2.6/dist/quagga.min.js"></script>
+<script src="https://unpkg.com/@zxing/library@0.19.1/umd/index.min.js"></script>
 
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&display=swap');
@@ -850,8 +850,7 @@ select.fi2{appearance:none}
 <div class="overlay" id="camModal">
   <div class="modal" style="padding:0;border-radius:20px 20px 0 0;overflow:hidden;background:#000">
     <div id="camWrap" style="position:relative;width:100%;background:#000;min-height:220px">
-      <!-- Quagga rendert hier rein -->
-      <div id="quagga-container" style="width:100%;overflow:hidden;max-height:55vh"></div>
+      <video id="zxing-video" style="width:100%;max-height:55vh;object-fit:cover;display:block;filter:contrast(1.4) brightness(1.1) saturate(0.3)" autoplay muted playsinline></video>
       <!-- Scan-Rahmen Overlay -->
       <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none">
         <div style="position:relative;width:72%;max-width:280px;height:100px">
@@ -868,8 +867,9 @@ select.fi2{appearance:none}
     </div>
     <div id="camStatus" style="background:#111;color:var(--muted);text-align:center;padding:10px 14px;font-size:13px">Kamera wird gestartet…</div>
     <div style="background:#000;padding:10px 14px;display:flex;gap:8px">
-      <button class="btn btn-surface" style="flex:1;font-size:13px" onclick="switchCam()">🔄 Kamera wechseln</button>
-      <button class="btn btn-surface" style="flex:1;font-size:13px" onclick="closeCamera()">Abbrechen</button>
+      <button id="torchBtn" onclick="toggleTorch()" style="background:#333;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:13px;cursor:pointer">🔦 Licht</button>
+      <button class="btn btn-surface" style="flex:1;font-size:13px" onclick="switchCam()">🔄 Wechseln</button>
+      <button class="btn btn-surface" style="flex:1;font-size:13px" onclick="closeCamera()">✕ Schließen</button>
     </div>
   </div>
 </div>
@@ -899,7 +899,7 @@ select.fi2{appearance:none}
         <strong style="color:var(--text)">Claude</strong> · KI-Assistent von Anthropic
       </p>
       <p style="font-size:11px;color:var(--muted);margin-top:10px;letter-spacing:1px">
-        Version 0.72
+        Version 0.73
       </p>
     </div>
     <button class="btn btn-surface" style="width:100%;margin-top:16px" onclick="document.getElementById('impressumModal').classList.remove('open')">Schließen</button>
@@ -1946,121 +1946,71 @@ document.getElementById('delModal').addEventListener('click', e => {
   if (e.target===document.getElementById('delModal')) closeDelModal();
 });
 
-// ── CAMERA BARCODE (Quagga2) ──────────────────────────────────────────────────
-let quaggaRunning = false;
-let lastScanned = '';
+// ── CAMERA BARCODE (ZXing) ────────────────────────────────────────────────────
+let zxingReader   = null;
+let lastScanned   = '';
 let lastScannedTime = 0;
 let camFacingBack = true;
 
 window.openCamera = async function() {
   document.getElementById('camModal').classList.add('open');
-  document.getElementById('camStatus').textContent = '📷 Kamera-Berechtigung wird angefragt…';
+  document.getElementById('camStatus').textContent = '📷 Kamera wird gestartet…';
   document.getElementById('detectedBar').style.display = 'none';
-  startQuagga();
+  await startZxing();
 };
 
-function startQuagga() {
-  if (quaggaRunning) { Quagga.stop(); quaggaRunning = false; }
+async function startZxing() {
+  if (zxingReader) { try { zxingReader.reset(); } catch(e){} zxingReader = null; }
 
-  const container = document.getElementById('quagga-container');
-  container.innerHTML = ''; // reset
-
-  Quagga.init({
-    inputStream: {
-      name: 'Live',
-      type: 'LiveStream',
-      target: container,
-      constraints: {
-        facingMode: camFacingBack ? 'environment' : 'user',
-        width:  { min: 640, ideal: 1920 },
-        height: { min: 480, ideal: 1080 },
-        advanced: [{ torch: window._torchOn || false }],
-      },
-    },
-    decoder: {
-      readers: [
-        'ean_reader',       // EAN-13 (Standard Supermarkt)
-        'ean_8_reader',     // EAN-8
-        'upc_reader',       // UPC-A
-        'upc_e_reader',     // UPC-E
-        'code_128_reader',  // Code 128
-        'code_39_reader',   // Code 39
-      ],
-      multiple: false,
-    },
-    locate: true,
-    frequency: 20,
-    halfSample: true,
-  }, function(err) {
-    if (err) {
-      let msg = '⚠️ ' + err.message;
-      if (err.name === 'NotAllowedError' || (err.message||'').includes('Permission'))
-        msg = '⛔ Kamera verweigert – bitte in Einstellungen erlauben.';
-      document.getElementById('camStatus').textContent = msg;
+  try {
+    if (typeof ZXing === 'undefined') {
+      document.getElementById('camStatus').textContent = '⚠️ Scanner lädt noch…';
+      setTimeout(startZxing, 1000);
       return;
     }
-    Quagga.start();
-    quaggaRunning = true;
+
+    const hints = new Map();
+    hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+    zxingReader = new ZXing.BrowserMultiFormatReader(hints);
+
+    const devices = await zxingReader.listVideoInputDevices();
+    let deviceId = undefined;
+    if (devices.length > 0) {
+      const back = devices.find(d => /back|rear|environment|rück/i.test(d.label));
+      deviceId = camFacingBack
+        ? (back ? back.deviceId : devices[devices.length-1].deviceId)
+        : devices[0].deviceId;
+    }
+
     document.getElementById('camStatus').textContent = '🔍 Barcode in den Rahmen halten…';
 
-    // Video-Element von Quagga stylen
-    const vid = container.querySelector('video');
-    if (vid) {
-      vid.style.cssText = 'width:100%;max-height:55vh;object-fit:cover;display:block';
-    }
-    const canvas = container.querySelector('canvas');
-    if (canvas) canvas.style.display = 'none'; // debug canvas ausblenden
-  });
+    zxingReader.decodeFromVideoDevice(deviceId, 'zxing-video', (result, err) => {
+      if (!result) return;
+      const code = result.getText();
+      if (!code) return;
 
-  // Barcode erkannt
-  Quagga.offDetected(); // alte listener entfernen
-  let confirmCode = '';
-  let confirmCount = 0;
-  const NEEDED = 2; // wie oft muss der gleiche Code hintereinander erkannt werden
+      const now = Date.now();
+      if (code === lastScanned && now - lastScannedTime < 1500) return;
+      lastScanned = code;
+      lastScannedTime = now;
 
-  Quagga.onDetected(function(result) {
-    const code = result?.codeResult?.code;
-    if (!code) return;
+      document.getElementById('detectedCode').textContent = code;
+      document.getElementById('detectedBar').style.display = 'block';
+      document.getElementById('camStatus').textContent = '✅ Barcode erkannt!';
 
-    // Gleichen Code nicht sofort zweimal scannen (3 Sek. Sperre nach Erfolg)
-    const now = Date.now();
-    if (code === lastScanned && now - lastScannedTime < 3000) return;
+      setTimeout(() => {
+        closeCamera();
+        bIn.value = code;
+        doScan();
+      }, 600);
+    });
 
-    // Bestätigungs-Zähler
-    if (code === confirmCode) {
-      confirmCount++;
-    } else {
-      confirmCode = code;
-      confirmCount = 1;
-    }
-
-    // Fortschritt anzeigen
-    const dots = '●'.repeat(confirmCount) + '○'.repeat(Math.max(0, NEEDED - confirmCount));
-    document.getElementById('camStatus').textContent = `🔍 Barcode halten… ${dots}`;
-
-    if (confirmCount < NEEDED) return; // noch nicht sicher genug
-
-    // Jetzt sicher – akzeptieren
-    lastScanned = code;
-    lastScannedTime = now;
-    confirmCode = '';
-    confirmCount = 0;
-
-    // Vibration als Feedback (Android/iPhone)
-    if (navigator.vibrate) navigator.vibrate(80);
-
-    // Anzeigen
-    document.getElementById('detectedCode').textContent = code;
-    document.getElementById('detectedBar').style.display = 'block';
-    document.getElementById('camStatus').textContent = '✅ Barcode erkannt!';
-
-    // Kurz warten dann schließen & verarbeiten
-    setTimeout(() => {
-      closeCamera();
-      bIn.value = code;
-      doScan();
-    }, 600);
-  });
+  } catch(err) {
+    let msg = '⚠️ ' + (err.message || String(err));
+    if (err.name === 'NotAllowedError' || (err.message||'').includes('ermission'))
+      msg = '⛔ Kamera verweigert – bitte in Einstellungen erlauben.';
+    document.getElementById('camStatus').textContent = msg;
+  }
 }
 
 window._torchOn = false;
@@ -2068,9 +2018,8 @@ window.toggleTorch = async function() {
   window._torchOn = !window._torchOn;
   document.getElementById('torchBtn').textContent = window._torchOn ? '🔦 Licht aus' : '🔦 Licht';
   document.getElementById('torchBtn').style.background = window._torchOn ? '#f97316' : '#333';
-  // Torch über MediaStream Track direkt ansteuern
   try {
-    const vid = document.querySelector('#quagga-container video');
+    const vid = document.getElementById('zxing-video');
     if (vid?.srcObject) {
       const track = vid.srcObject.getVideoTracks()[0];
       if (track?.getCapabilities()?.torch !== undefined) {
@@ -2079,20 +2028,20 @@ window.toggleTorch = async function() {
     }
   } catch(e) { toast('Taschenlampe nicht verfügbar auf diesem Gerät','e'); }
 };
+
 window.switchCam = function() {
   camFacingBack = !camFacingBack;
-  startQuagga();
+  startZxing();
 };
 
 window.closeCamera = function() {
-  if (quaggaRunning) {
-    try { Quagga.stop(); } catch(e) {}
-    quaggaRunning = false;
-  }
+  if (zxingReader) { try { zxingReader.reset(); } catch(e){} zxingReader = null; }
+  const vid = document.getElementById('zxing-video');
+  if (vid?.srcObject) { vid.srcObject.getTracks().forEach(t => t.stop()); vid.srcObject = null; }
+  if (vid) vid.style.filter = 'contrast(1.4) brightness(1.1) saturate(0.3)';
   window._torchOn = false;
   const tb = document.getElementById('torchBtn');
   if (tb) { tb.textContent='🔦 Licht'; tb.style.background='#333'; }
-  document.getElementById('quagga-container').innerHTML = '';
   document.getElementById('detectedBar').style.display = 'none';
   document.getElementById('camModal').classList.remove('open');
 };
