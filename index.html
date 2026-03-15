@@ -903,7 +903,7 @@ select.fi2{appearance:none}
         <strong style="color:var(--text)">Claude</strong> · KI-Assistent von Anthropic
       </p>
       <p style="font-size:11px;color:var(--muted);margin-top:10px;letter-spacing:1px">
-        Version 0.75
+        Version 0.76
       </p>
     </div>
     <button class="btn btn-surface" style="width:100%;margin-top:16px" onclick="document.getElementById('impressumModal').classList.remove('open')">Schließen</button>
@@ -2034,7 +2034,7 @@ window.tapSnapshot = async function(e) {
   document.getElementById('camStatus').textContent = '📸 Analysiere…';
 
   try {
-    // Snapshot vom aktuellen Frame
+    // Snapshot vom aktuellen Frame als Bild-URL
     canvas.width  = vid.videoWidth  || 1280;
     canvas.height = vid.videoHeight || 720;
     const ctx = canvas.getContext('2d');
@@ -2042,9 +2042,14 @@ window.tapSnapshot = async function(e) {
     ctx.drawImage(vid, 0, 0, canvas.width, canvas.height);
     ctx.filter = 'none';
 
-    // ZXing auf Canvas
+    // Als Image-Element laden und ZXing darauf anwenden
+    const imgSrc = canvas.toDataURL('image/png');
+    const img = new Image();
+    img.src = imgSrc;
+    await new Promise(r => img.onload = r);
+
     const snapReader = new ZXingBrowser.BrowserMultiFormatReader();
-    const result = await snapReader.decodeFromCanvas(canvas);
+    const result = await snapReader.decodeFromImageElement(img);
     const code = result.getText();
 
     if (code) {
