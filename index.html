@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="screen-orientation" content="portrait">
 <title>🍺 Getränke Lager</title>
 
 <!-- Firebase -->
@@ -335,6 +336,11 @@ select.fi2{appearance:none}
 .best-name{font-size:13px;font-weight:600;color:var(--text)}
 .best-qty{font-size:11px;color:var(--muted);margin-top:2px}
 .best-del{background:#fdecea;color:var(--red);border:none;border-radius:8px;width:32px;height:32px;font-size:18px;cursor:pointer;flex-shrink:0}
+@media screen and (orientation: landscape) and (max-height: 500px) {
+  body { transform: rotate(-90deg); transform-origin: left top;
+         width: 100vh; height: 100vw; overflow-x: hidden;
+         position: absolute; top: 100%; left: 0; }
+}
 </style>
 </head>
 <body>
@@ -925,7 +931,7 @@ select.fi2{appearance:none}
         <strong style="color:var(--text)">Claude</strong> · KI-Assistent von Anthropic
       </p>
       <p style="font-size:11px;color:var(--muted);margin-top:10px;letter-spacing:1px">
-        Version 0.80
+        Version 0.81
       </p>
     </div>
     <button class="btn btn-surface" style="width:100%;margin-top:16px" onclick="document.getElementById('impressumModal').classList.remove('open')">Schließen</button>
@@ -1428,6 +1434,11 @@ window.doArtScan = function() {
 // invScanIn – filtert Liste per Scan oder Texteingabe
 let invScanTimer = null;
 document.addEventListener('DOMContentLoaded', () => {
+  // Screen in Portrait sperren
+  try {
+    if (screen.orientation?.lock) screen.orientation.lock('portrait').catch(()=>{});
+  } catch(e) {}
+
   const invEl = document.getElementById('invScanIn');
   if (!invEl) return;
   invEl.addEventListener('input', () => {
