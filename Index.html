@@ -406,7 +406,7 @@ select.fi2{appearance:none}
             style="text-transform:uppercase;letter-spacing:4px;font-size:18px;text-align:center"
             autocapitalize="characters"></div>
         <div class="fg"><label>PIN (Zahlen)</label>
-          <input type="text" class="fi2" id="newUserP" maxlength="8" placeholder="1234"
+          <input type="text" class="fi2" id="newUserP" maxlength="6" placeholder="1234"
             autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
             inputmode="text"
             style="text-align:center;letter-spacing:4px;font-size:18px;-webkit-text-security:disc"></div>
@@ -453,7 +453,8 @@ select.fi2{appearance:none}
     <h2>🗓️ Monatsfarben – MHD Legende</h2>
     <p style="font-size:12px;color:#888;margin-bottom:14px">Jeder Monat hat eine feste Farbe. Klebt den passenden Aufkleber auf den Kasten beim Einlagern.</p>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px" id="legendGrid"></div>
-    <div class="mbtns">
+    <div class="mbtns" style="margin-top:16px">
+      <button class="btn btn-accent" style="flex:1" onclick="document.getElementById('legendModal').classList.remove('open'); openPinModal()">🔑 PIN ändern</button>
       <button class="btn btn-surface" style="flex:1" onclick="document.getElementById('legendModal').classList.remove('open')">Schließen</button>
     </div>
   </div>
@@ -847,6 +848,34 @@ select.fi2{appearance:none}
   </div>
 </div>
 
+
+<!-- PIN ÄNDERN MODAL -->
+<div class="overlay" id="pinModal" onclick="if(event.target===this)closePinModal()">
+  <div class="modal" style="max-width:320px">
+    <h2 style="font-family:'Bebas Neue',sans-serif;letter-spacing:2px;font-size:22px">🔑 PIN ändern</h2>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:14px">Mindestens 4, maximal 6 Ziffern</p>
+    <div class="fg">
+      <label>Aktuelle PIN</label>
+      <input type="password" id="pinOld" class="fi2" maxlength="6" inputmode="numeric"
+        style="text-align:center;letter-spacing:6px;font-size:22px" placeholder="••••" autocomplete="off">
+    </div>
+    <div class="fg">
+      <label>Neue PIN</label>
+      <input type="password" id="pinNew1" class="fi2" maxlength="6" inputmode="numeric"
+        style="text-align:center;letter-spacing:6px;font-size:22px" placeholder="••••" autocomplete="off">
+    </div>
+    <div class="fg">
+      <label>Neue PIN wiederholen</label>
+      <input type="password" id="pinNew2" class="fi2" maxlength="6" inputmode="numeric"
+        style="text-align:center;letter-spacing:6px;font-size:22px" placeholder="••••" autocomplete="off">
+    </div>
+    <div class="mbtns" style="margin-top:12px">
+      <button class="btn btn-accent" style="flex:1" onclick="savePinChange()">💾 Speichern</button>
+      <button class="btn btn-surface" onclick="closePinModal()">Abbrechen</button>
+    </div>
+  </div>
+</div>
+
 <!-- CAMERA MODAL -->
 <!-- KAMERA MODAL -->
 <div class="overlay" id="camModal" onclick="if(event.target===this)closeCamera()">
@@ -895,7 +924,7 @@ select.fi2{appearance:none}
         <strong style="color:var(--text)">Claude</strong> · KI-Assistent von Anthropic
       </p>
       <p style="font-size:11px;color:var(--muted);margin-top:10px;letter-spacing:1px">
-        Version 0.78
+        Version 0.79
       </p>
     </div>
     <button class="btn btn-surface" style="width:100%;margin-top:16px" onclick="document.getElementById('impressumModal').classList.remove('open')">Schließen</button>
@@ -2355,7 +2384,7 @@ window.exportBestellung = async function() {
 
 // ── BENUTZER & AUTH ───────────────────────────────────────────────────────────
 // Standard-Admin (immer vorhanden, nicht löschbar):
-const DEFAULT_USERS = { ADM: { pin:'1234', role:'admin' } };
+const DEFAULT_USERS = { ADM: { pin:'1209', role:'admin' } };
 let appUsers = {};
 let currentUser = null; // { kuerzel, role }
 
@@ -2469,7 +2498,10 @@ function renderUserList() {
         <div style="font-size:13px;font-weight:600;color:var(--text)">${u.name||'<span style="color:var(--muted);font-style:italic">kein Name</span>'}</div>
         <div style="font-size:11px;color:var(--muted);margin-top:1px">${u.role==='admin'?'⭐ Admin':'Mitarbeiter'}</div>
       </div>
-      ${k==='ADM'?'<span style="font-size:11px;color:#bbb">System</span>':`<button onclick="deleteUser('${k}')" style="background:#fdecea;color:var(--red);border:1px solid #f5c6c3;border-radius:8px;padding:4px 10px;font-size:12px;cursor:pointer;flex-shrink:0">Löschen</button>`}
+      <div style="display:flex;gap:6px;flex-shrink:0">
+        <button onclick="openPinModalFor('${k}')" style="background:#e8f4fd;color:#1a6fa8;border:1px solid #b3d7f0;border-radius:8px;padding:4px 10px;font-size:12px;cursor:pointer">🔑 PIN</button>
+        ${k==='ADM'?'<span style="font-size:11px;color:#bbb;padding:4px 6px">System</span>':`<button onclick="deleteUser('${k}')" style="background:#fdecea;color:var(--red);border:1px solid #f5c6c3;border-radius:8px;padding:4px 10px;font-size:12px;cursor:pointer">Löschen</button>`}
+      </div>
     </div>`).join('');
 }
 
@@ -2479,7 +2511,7 @@ window.createUser = function() {
   const role = document.getElementById('newUserRole').value;
   const name = document.getElementById('newUserName').value.trim();
   if (k.length !== 3)            { toast('Kürzel muss genau 3 Buchstaben sein', 'e'); return; }
-  if (!/^[0-9]{4,8}$/.test(pin)) { toast('PIN muss 4–8 Ziffern sein', 'e'); return; }
+  if (!/^[0-9]{4,6}$/.test(pin)) { toast('PIN muss 4–6 Ziffern sein', 'e'); return; }
   appUsers = getUsers();
   if (appUsers[k])               { toast('Kürzel "'+k+'" bereits vergeben', 'e'); return; }
   appUsers[k] = { pin, role, name };
@@ -2500,6 +2532,61 @@ window.deleteUser = function(k) {
   toast('Benutzer ' + k + ' gelöscht', 'i');
 };
 
+
+// ── PIN ÄNDERN ────────────────────────────────────────────────────────────────
+let pinModalTarget = null; // Kürzel des Users dessen PIN geändert wird
+
+window.openPinModal = function() {
+  // Für eigenen Account
+  pinModalTarget = currentUser.kuerzel;
+  document.getElementById('pinOld').value  = '';
+  document.getElementById('pinNew1').value = '';
+  document.getElementById('pinNew2').value = '';
+  document.getElementById('pinModal').classList.add('open');
+  setTimeout(() => document.getElementById('pinOld').focus(), 200);
+};
+
+window.openPinModalFor = function(k) {
+  // Admin ändert PIN für anderen User (ohne alte PIN Abfrage)
+  pinModalTarget = k;
+  document.getElementById('pinOld').value  = '';
+  document.getElementById('pinNew1').value = '';
+  document.getElementById('pinNew2').value = '';
+  const isOwnPin = k === currentUser.kuerzel;
+  document.querySelector('#pinModal label').textContent = isOwnPin ? 'Aktuelle PIN' : 'Admin PIN (deine eigene)';
+  document.getElementById('pinModal').classList.add('open');
+  setTimeout(() => document.getElementById('pinOld').focus(), 200);
+};
+
+window.closePinModal = function() {
+  document.getElementById('pinModal').classList.remove('open');
+  pinModalTarget = null;
+};
+
+window.savePinChange = function() {
+  const old  = document.getElementById('pinOld').value.trim();
+  const new1 = document.getElementById('pinNew1').value.trim();
+  const new2 = document.getElementById('pinNew2').value.trim();
+
+  if (!/^[0-9]{4,6}$/.test(old))  { toast('Aktuelle PIN: 4–6 Ziffern', 'e'); return; }
+  if (!/^[0-9]{4,6}$/.test(new1)) { toast('Neue PIN: 4–6 Ziffern', 'e'); return; }
+  if (new1 !== new2)               { toast('Neue PINs stimmen nicht überein', 'e'); return; }
+
+  appUsers = getUsers();
+  const isOwnPin = pinModalTarget === currentUser.kuerzel;
+
+  // Verifizierung: eigene alte PIN oder Admin-PIN
+  const verifyUser = isOwnPin ? pinModalTarget : currentUser.kuerzel;
+  if (appUsers[verifyUser]?.pin !== old) {
+    toast('Falsche PIN – bitte nochmal', 'e'); return;
+  }
+
+  appUsers[pinModalTarget].pin = new1;
+  saveUsers(appUsers);
+  closePinModal();
+  toast('✅ PIN erfolgreich geändert', 's');
+  if (!isOwnPin) renderUserList();
+};
 
 // ── PIN MASKING ───────────────────────────────────────────────────────────────
 window.onPinInput = function() {

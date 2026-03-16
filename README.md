@@ -1,198 +1,46 @@
-<p align="center">
-  <img src="assets/logo.png" alt="BALLONI GmbH Logo" width="320">
-</p>
+# 🍺 Drinkventory
 
-<h1 align="center">🍺 Balloni – Getränkelager Manager</h1>
+**Die smarte Getränkelagerverwaltung für die Gastronomie.**
 
-<p align="center">
-  Die smarte Getränkeliste für Bars, Vereine und Events.
-</p>
-
-<p align="center">
-  <img src="https://img.shields.io/badge/status-active-success.svg">
-  <img src="https://img.shields.io/badge/version-1.0-blue.svg">
-  <img src="https://img.shields.io/badge/license-MIT-lightgrey.svg">
-  <img src="https://img.shields.io/badge/firebase-realtime%20database-orange">
-</p>
+Drinkventory ist eine moderne, browserbasierte Web-App die speziell für den Alltag kleiner und mittlerer Gastronomiebetriebe entwickelt wurde. Kein App-Store, keine Installation – einfach den Link öffnen und loslegen.
 
 ---
 
-# 🍺 Balloni
+## ✨ Was Drinkventory kann
 
-**Balloni** ist eine einfache und schnelle Web-App zur Verwaltung von Getränkelagern.
+**📦 Lagerverwaltung**
+Behalte jederzeit den Überblick über deinen gesamten Getränkebestand – Kästen, Fässer und Kartons. Ein- und Ausgänge werden sekundenschnell gebucht, der Bestand aktualisiert sich in Echtzeit auf allen Geräten.
 
-Mit Balloni kannst du:
+**📅 MHD-System mit Farbcode**
+Jeder Monat hat eine feste Farbe. Beim Einlagern zeigt die App welchen Aufkleber du auf den Kasten kleben musst. So siehst du auf einen Blick was zuerst verbraucht werden muss – ganz ohne Listen ausdrucken zu müssen.
 
-- Barcodes scannen  
-- Kästen und Flaschen buchen  
-- Inventuren durchführen  
-- Mindestbestände überwachen  
-- Bestellungen planen  
+**📷 Barcode-Scanner**
+Artikel direkt per Handy-Kamera oder Laser-Scanner scannen. Unbekannte Barcodes lassen sich sofort als neuer Artikel anlegen.
 
-Perfekt für:
+**🛒 Bestelllisten**
+Erstelle Bestelllisten mit einem Klick und exportiere sie als Excel-Datei – direkt per WhatsApp oder Mail an den Lieferanten.
 
-- 🍻 Bars  
-- 🎪 Events  
-- 🏢 Vereine  
-- 🥳 Partys  
-- 📦 Getränkelager  
+**📊 Dashboard & Alarme**
+Das übersichtliche Dashboard zeigt auf einen Blick: Gesamtbestand, Alarme bei Mindestbestand, MHD-Warnungen und vieles mehr.
 
-Alle Daten werden **live synchronisiert**, sodass mehrere Geräte gleichzeitig mit dem gleichen Lager arbeiten können.
+**👥 Benutzerverwaltung**
+Jeder Mitarbeiter hat sein eigenes Kürzel und eine PIN. Admins verwalten Benutzer, Artikel und Hersteller. Mitarbeiter können ihre PIN jederzeit selbst ändern.
 
----
+**☁️ Echtzeit-Sync**
+Alle Daten werden in der Cloud gespeichert und synchronisieren sich sofort auf allen Geräten. Egal ob iPhone, Android oder PC – immer der gleiche aktuelle Stand.
 
-# ✨ Features
-
-### 📷 Barcode Scanner
-Scanne Getränkebarcodes direkt mit der Smartphone-Kamera.
-
-### 📦 Lagerverwaltung
-Verwalte Kästen und einzelne Flaschen übersichtlich.
-
-### ➕ / ➖ Wareneingang & Ausgang
-Buche Getränke in Sekunden.
-
-### ⚠️ Mindestbestand Alarm
-Automatische Warnung wenn der Bestand zu niedrig ist.
-
-### 🔢 Inventurmodus
-Schnelle Bestandskorrektur per Inventur.
-
-### 🛒 Bestellliste
-Erstelle Bestellungen direkt aus dem Lager heraus.
-
-### 📊 Dashboard
-Statistiken über Bestand und Verbrauch.
-
-### ☁️ Cloud Sync
-Alle Geräte sehen immer den gleichen Bestand (Firebase).
-
-### 👥 Benutzerverwaltung
-Login mit Benutzerkürzel und PIN.
+**📤 Excel-Export**
+Lagerbestand und Bestelllisten lassen sich als Excel-Datei exportieren und direkt teilen.
 
 ---
 
-# 📸 Screenshots
+## 🏢 Entwickelt von
 
-*(optional – hier später Screenshots einfügen)*
+**BALLONI Hallen und Veranstaltungs GmbH**
+Ehrenfeldgürtel 88–94 · 50823 Köln-Ehrenfeld
 
-```
-/screenshots/dashboard.png
-/screenshots/lager.png
-/screenshots/scanner.png
-```
+Entwickelt mit Unterstützung von **Claude** · KI-Assistent von Anthropic
 
 ---
 
-# 🚀 Installation
-
-1. Repository herunterladen
-
-```
-git clone https://github.com/deinname/balloni-getraenkelager.git
-```
-
-oder ZIP herunterladen.
-
----
-
-# 🔥 Firebase Setup
-
-Balloni nutzt **Firebase Realtime Database**.
-
-### 1️⃣ Firebase Projekt erstellen
-
-Gehe zu:
-
-```
-https://console.firebase.google.com
-```
-
-Neues Projekt erstellen.
-
----
-
-### 2️⃣ Realtime Database aktivieren
-
-Region:
-
-```
-europe-west1
-```
-
----
-
-### 3️⃣ Sicherheitsregeln setzen
-
-Für einfache Nutzung:
-
-```json
-{
- "rules": {
-  ".read": true,
-  ".write": true
- }
-}
-```
-
----
-
-### 4️⃣ Firebase Config eintragen
-
-In der HTML Datei:
-
-```javascript
-const firebaseConfig = {
-  apiKey: "DEIN_KEY",
-  authDomain: "...",
-  databaseURL: "...",
-  projectId: "...",
-  storageBucket: "...",
-  messagingSenderId: "...",
-  appId: "..."
-};
-```
-
----
-
-# ▶️ Nutzung
-
-1. HTML Datei öffnen
-2. Benutzer anlegen
-3. Produkte hinzufügen
-4. Barcodes scannen
-5. Lager verwalten 🎉
-
----
-
-# 💡 Einsatzgebiete
-
-Balloni eignet sich besonders für:
-
-- Getränkelager in Bars
-- Vereinsheime
-- Eventlager
-- Festivalstände
-- Partyorganisation
-- kleine Gastronomie
-
----
-
-# 🧠 Kurz gesagt
-
-**Scannen. Buchen. Überblick behalten.**
-
----
-
-# 👨‍💻 Entwickler
-
-Projekt von
-
-**BALLONI GmbH**  
-Köln Ehrenfeld
-
----
-
-# 📄 Lizenz
-
-MIT License
+*Drinkventory – weil du Besseres zu tun hast als Strichlisten zu führen.* 🍺
