@@ -927,7 +927,7 @@ select.fi2{appearance:none}
         <strong style="color:var(--text)">Claude</strong> · KI-Assistent von Anthropic
       </p>
       <p style="font-size:11px;color:var(--muted);margin-top:10px;letter-spacing:1px">
-        Version 0.87
+        Version 0.88
       </p>
     </div>
     <button class="btn btn-surface" style="width:100%;margin-top:16px" onclick="document.getElementById('impressumModal').classList.remove('open')">Schließen</button>
@@ -2152,7 +2152,6 @@ document.getElementById('camModal').addEventListener('click', e => {
 
 // ── VIEW SWITCH ───────────────────────────────────────────────────────────────
 window.switchView = function(v) {
-  if (v==='Dashboard') renderDashboard();
   // Beim Verlassen des Lager-Tabs: Auswahl und Suche zurücksetzen
   const prev = document.querySelector('.view.active')?.id;
   if (prev === 'vLager' && v !== 'Lager') {
@@ -2167,12 +2166,11 @@ window.switchView = function(v) {
   document.getElementById('n'+v).classList.add('active');
   document.querySelector('.fab').style.display = (v==='History'||v==='Bestellung'||v==='Inventur'||v==='Dashboard')?'none':'flex';
   document.getElementById('scanStrip').style.display = v==='Lager'?'block':'none';
-  document.querySelector('.fab').style.display = (v==='History'||v==='Bestellung'||v==='Inventur')?'none':'flex';
-  if (v==='Artikel') { renderArtikel(); }
-  if (v==='Inventur') { renderInventur(); }
-  if (v==='Bestellung') renderBestellung();
-  if (v==='Dashboard') { renderDashboard(); }
-  if (v==='History') renderHistory();
+  if (v==='Artikel')    { renderArtikel(); }
+  if (v==='Inventur')   { renderInventur(); }
+  if (v==='Bestellung') { renderBestellung(); }
+  if (v==='Dashboard')  { renderDashboard(); }
+  if (v==='History')    { renderHistory(); }
 };
 
 // ── EXCEL EXPORT ──────────────────────────────────────────────────────────────
