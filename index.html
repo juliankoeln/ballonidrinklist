@@ -927,7 +927,7 @@ select.fi2{appearance:none}
         <strong style="color:var(--text)">Claude</strong> · KI-Assistent von Anthropic
       </p>
       <p style="font-size:11px;color:var(--muted);margin-top:10px;letter-spacing:1px">
-        Version 0.86
+        Version 0.87
       </p>
     </div>
     <button class="btn btn-surface" style="width:100%;margin-top:16px" onclick="document.getElementById('impressumModal').classList.remove('open')">Schließen</button>
@@ -1121,16 +1121,19 @@ function renderList() {
     .map(([id,p])=>({id,...p}))
     .filter(p => p.name?.toLowerCase().includes(q) || (p.barcode||'').includes(q) || (p.kategorie||'').toLowerCase().includes(q) || (p.marke||'').toLowerCase().includes(q))
     .sort((a,b) => {
-      const mhdScore = p => {
-        const n = (p.mhdList||[]).sort()[0];
-        if (!n) return 9;
-        const s = mhdStatus(n);
-        return s?.color==='#ef4444' ? 0 : s?.color==='#f97316' ? 1 : 2;
-      };
-      if (mhdScore(a) !== mhdScore(b)) return mhdScore(a) - mhdScore(b);
+      // Nächstes MHD Datum (frühestes zuerst)
+      const aNext = (a.mhdList||[]).slice().sort()[0];
+      const bNext = (b.mhdList||[]).slice().sort()[0];
+      // Artikel mit MHD vor Artikel ohne MHD
+      if (aNext && !bNext) return -1;
+      if (!aNext && bNext) return 1;
+      // Beide haben MHD – früheres zuerst
+      if (aNext && bNext && aNext !== bNext) return aNext < bNext ? -1 : 1;
+      // Mindestbestand-Alarm
       const aLow = a.kaesten < (a.minBestand||0) ? 0 : 1;
       const bLow = b.kaesten < (b.minBestand||0) ? 0 : 1;
       if (aLow !== bLow) return aLow - bLow;
+      // Alphabetisch
       return (a.name||'').localeCompare(b.name||'');
     });
 
@@ -2149,6 +2152,7 @@ document.getElementById('camModal').addEventListener('click', e => {
 
 // ── VIEW SWITCH ───────────────────────────────────────────────────────────────
 window.switchView = function(v) {
+  if (v==='Dashboard') renderDashboard();
   // Beim Verlassen des Lager-Tabs: Auswahl und Suche zurücksetzen
   const prev = document.querySelector('.view.active')?.id;
   if (prev === 'vLager' && v !== 'Lager') {
@@ -2167,7 +2171,7 @@ window.switchView = function(v) {
   if (v==='Artikel') { renderArtikel(); }
   if (v==='Inventur') { renderInventur(); }
   if (v==='Bestellung') renderBestellung();
-  if (v==='Dashboard') renderDashboard();
+  if (v==='Dashboard') { renderDashboard(); }
   if (v==='History') renderHistory();
 };
 
@@ -2887,4 +2891,8 @@ if (savedSession) {
 </script>
 <div class="overlay" id="dashPopup" onclick="if(event.target===this)this.classList.remove('open')">
   <div class="modal" style="max-width:420px">
-    <h2 id="dashP
+    <h2 id="dashPopupTitle" style="font-family:'Bebas Neue',sans-serif;letter-spacing:2px;font-size:22px;margin-bottom:14px"></h2>
+    <div id="dashPopupList"></div>
+    <button class="btn btn-surface" style="width:100%;margin-top:14px" onclick="document.getElementById('dashPopup').classList.remove('open')">Schließen</button>
+  </div>
+</div>
