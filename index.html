@@ -232,6 +232,7 @@ select.fi2{appearance:none}
 
 /* CAMERA */
 #camModal .modal{background:#000;padding:0;border-radius:16px 16px 0 0;overflow:hidden;border-top:none}
+#camModal { touch-action: none; }
 
 /* SETUP BANNER */
 #setupBanner{background:#fffcf2;border:1px solid var(--accent2);border-radius:var(--r);padding:14px;margin-bottom:14px;font-size:13px;line-height:1.6;display:none}
@@ -405,7 +406,7 @@ select.fi2{appearance:none}
             style="text-transform:uppercase;letter-spacing:4px;font-size:18px;text-align:center"
             autocapitalize="characters"></div>
         <div class="fg"><label>PIN (Zahlen)</label>
-          <input type="text" class="fi2" id="newUserP" maxlength="8" placeholder="1234"
+          <input type="text" class="fi2" id="newUserP" maxlength="6" placeholder="1234"
             autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
             inputmode="text"
             style="text-align:center;letter-spacing:4px;font-size:18px;-webkit-text-security:disc"></div>
@@ -452,7 +453,8 @@ select.fi2{appearance:none}
     <h2>🗓️ Monatsfarben – MHD Legende</h2>
     <p style="font-size:12px;color:#888;margin-bottom:14px">Jeder Monat hat eine feste Farbe. Klebt den passenden Aufkleber auf den Kasten beim Einlagern.</p>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px" id="legendGrid"></div>
-    <div class="mbtns">
+    <div class="mbtns" style="margin-top:16px">
+      <button class="btn btn-accent" style="flex:1" onclick="document.getElementById('legendModal').classList.remove('open'); openPinModal()">🔑 PIN ändern</button>
       <button class="btn btn-surface" style="flex:1" onclick="document.getElementById('legendModal').classList.remove('open')">Schließen</button>
     </div>
   </div>
@@ -846,35 +848,54 @@ select.fi2{appearance:none}
   </div>
 </div>
 
+
+<!-- PIN ÄNDERN MODAL -->
+<div class="overlay" id="pinModal" onclick="if(event.target===this)closePinModal()">
+  <div class="modal" style="max-width:320px">
+    <h2 style="font-family:'Bebas Neue',sans-serif;letter-spacing:2px;font-size:22px">🔑 PIN ändern</h2>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:14px">Mindestens 4, maximal 6 Ziffern</p>
+    <div class="fg">
+      <label>Aktuelle PIN</label>
+      <input type="password" id="pinOld" class="fi2" maxlength="6" inputmode="numeric"
+        style="text-align:center;letter-spacing:6px;font-size:22px" placeholder="••••" autocomplete="off">
+    </div>
+    <div class="fg">
+      <label>Neue PIN</label>
+      <input type="password" id="pinNew1" class="fi2" maxlength="6" inputmode="numeric"
+        style="text-align:center;letter-spacing:6px;font-size:22px" placeholder="••••" autocomplete="off">
+    </div>
+    <div class="fg">
+      <label>Neue PIN wiederholen</label>
+      <input type="password" id="pinNew2" class="fi2" maxlength="6" inputmode="numeric"
+        style="text-align:center;letter-spacing:6px;font-size:22px" placeholder="••••" autocomplete="off">
+    </div>
+    <div class="mbtns" style="margin-top:12px">
+      <button class="btn btn-accent" style="flex:1" onclick="savePinChange()">💾 Speichern</button>
+      <button class="btn btn-surface" onclick="closePinModal()">Abbrechen</button>
+    </div>
+  </div>
+</div>
+
 <!-- CAMERA MODAL -->
-<div class="overlay" id="camModal">
-  <div class="modal" style="padding:0;border-radius:20px 20px 0 0;overflow:hidden;background:#000">
-    <div id="camWrap" style="position:relative;width:100%;background:#000;min-height:220px">
-      <!-- Quagga rendert hier rein -->
-      <video id="zxing-video" style="width:100%;max-height:55vh;object-fit:cover;display:block;filter:contrast(1.4) brightness(1.1) saturate(0.3)" autoplay muted playsinline onclick="tapSnapshot(event)"></video>
-      <canvas id="zxing-canvas" style="display:none"></canvas>
-      <div id="focusRing" style="display:none;position:absolute;width:70px;height:70px;border:3px solid #fff;border-radius:50%;pointer-events:none;transform:translate(-50%,-50%);transition:opacity 0.3s"></div>
-      <div style="position:absolute;bottom:8px;left:0;right:0;text-align:center;color:rgba(255,255,255,0.5);font-size:11px;pointer-events:none">👆 Antippen zum Scannen</div>
-      <!-- Scan-Rahmen Overlay -->
-      <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none">
-        <div style="position:relative;width:72%;max-width:280px;height:100px">
-          <div style="width:100%;height:100%;border:2px solid var(--accent);border-radius:8px;box-shadow:0 0 0 9999px rgba(0,0,0,0.5)"></div>
-          <div id="scanLine" style="position:absolute;left:0;right:0;height:2px;background:var(--accent);top:0;animation:scanline 2s ease-in-out infinite"></div>
-        </div>
-      </div>
-      <button id="camClose" onclick="closeCamera()" style="position:absolute;top:10px;right:10px;background:rgba(0,0,0,.7);border:none;color:#fff;border-radius:50%;width:36px;height:36px;font-size:18px;cursor:pointer;z-index:10;display:flex;align-items:center;justify-content:center">✕</button>
+<!-- KAMERA MODAL -->
+<div class="overlay" id="camModal" onclick="if(event.target===this)closeCamera()">
+  <div class="modal" style="padding:20px;max-width:340px;text-align:center">
+    <h2 style="font-family:'Bebas Neue',sans-serif;letter-spacing:2px;font-size:22px;margin-bottom:8px">📷 Barcode scannen</h2>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px">Foto machen – Barcode muss scharf und gut beleuchtet sein</p>
+
+    <!-- Vorschau des aufgenommenen Fotos -->
+    <div id="photoPreview" style="display:none;margin-bottom:12px">
+      <img id="photoImg" style="width:100%;border-radius:8px;max-height:200px;object-fit:contain" />
+      <div id="photoStatus" style="margin-top:8px;font-size:13px;color:var(--muted)">Analysiere…</div>
     </div>
-    <!-- Erkannter Barcode Anzeige -->
-    <div id="detectedBar" style="display:none;background:#142a1e;border-top:2px solid var(--green);padding:10px 16px;text-align:center">
-      <div style="font-size:11px;color:var(--muted);margin-bottom:2px">ERKANNT</div>
-      <div id="detectedCode" style="font-family:monospace;font-size:18px;color:var(--green);font-weight:700"></div>
-    </div>
-    <div id="camStatus" style="background:#111;color:var(--muted);text-align:center;padding:10px 14px;font-size:13px">Kamera wird gestartet…</div>
-    <div style="background:#000;padding:10px 14px;display:flex;gap:8px">
-      <button id="torchBtn" onclick="toggleTorch()" style="background:#333;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:13px;cursor:pointer">🔦 Licht</button>
-      <button class="btn btn-surface" style="flex:1;font-size:13px" onclick="switchCam()">🔄 Wechseln</button>
-      <button class="btn btn-surface" style="flex:1;font-size:13px" onclick="closeCamera()">✕ Schließen</button>
-    </div>
+
+    <!-- Foto aufnehmen Button -->
+    <label id="camLabel" style="display:block;background:var(--accent);color:#fff;border-radius:var(--r);padding:14px;font-size:16px;font-weight:700;cursor:pointer;margin-bottom:10px">
+      📸 Foto aufnehmen
+      <input type="file" id="camInput" accept="image/*" capture="environment" style="display:none" onchange="handlePhoto(this)">
+    </label>
+
+    <button class="btn btn-surface" style="width:100%" onclick="closeCamera()">Abbrechen</button>
   </div>
 </div>
 
@@ -903,7 +924,7 @@ select.fi2{appearance:none}
         <strong style="color:var(--text)">Claude</strong> · KI-Assistent von Anthropic
       </p>
       <p style="font-size:11px;color:var(--muted);margin-top:10px;letter-spacing:1px">
-        Version 0.76
+        Version 0.79
       </p>
     </div>
     <button class="btn btn-surface" style="width:100%;margin-top:16px" onclick="document.getElementById('impressumModal').classList.remove('open')">Schließen</button>
@@ -1950,156 +1971,70 @@ document.getElementById('delModal').addEventListener('click', e => {
   if (e.target===document.getElementById('delModal')) closeDelModal();
 });
 
-// ── CAMERA BARCODE (ZXing Browser) ───────────────────────────────────────────
-let zxingReader   = null;
-let zxingControls = null;
+// ── CAMERA BARCODE (Native Foto) ─────────────────────────────────────────────
 let lastScanned   = '';
 let lastScannedTime = 0;
-let camFacingBack = true;
 
-window.openCamera = async function() {
+window.openCamera = function() {
   document.getElementById('camModal').classList.add('open');
-  document.getElementById('camStatus').textContent = '📷 Kamera wird gestartet…';
-  document.getElementById('detectedBar').style.display = 'none';
-  await startZxing();
-};
-
-async function startZxing() {
-  if (zxingControls) { try { zxingControls.stop(); } catch(e){} zxingControls = null; }
-  if (zxingReader)   { try { zxingReader.reset();   } catch(e){} zxingReader   = null; }
-
-  try {
-    if (typeof ZXingBrowser === 'undefined') {
-      document.getElementById('camStatus').textContent = '⚠️ Scanner lädt noch…';
-      setTimeout(startZxing, 1000);
-      return;
-    }
-
-    zxingReader = new ZXingBrowser.BrowserMultiFormatReader();
-
-    const devices = await ZXingBrowser.BrowserCodeReader.listVideoInputDevices();
-    let deviceId = undefined;
-    if (devices.length > 0) {
-      const back = devices.find(d => /back|rear|environment|rück/i.test(d.label));
-      deviceId = camFacingBack
-        ? (back ? back.deviceId : devices[devices.length-1].deviceId)
-        : devices[0].deviceId;
-    }
-
-    const videoEl = document.getElementById('zxing-video');
-    document.getElementById('camStatus').textContent = '🔍 Barcode in den Rahmen halten…';
-
-    zxingControls = await zxingReader.decodeFromVideoDevice(
-      deviceId, videoEl,
-      (result, error, controls) => {
-        if (!result) return;
-        const code = result.getText();
-        if (!code) return;
-
-        const now = Date.now();
-        if (code === lastScanned && now - lastScannedTime < 1500) return;
-        lastScanned = code;
-        lastScannedTime = now;
-
-        document.getElementById('detectedCode').textContent = code;
-        document.getElementById('detectedBar').style.display = 'block';
-        document.getElementById('camStatus').textContent = '✅ Barcode erkannt!';
-
-        setTimeout(() => { closeCamera(); bIn.value = code; doScan(); }, 600);
-      }
-    );
-
-  } catch(err) {
-    let msg = '⚠️ ' + (err.message || String(err));
-    if (err.name === 'NotAllowedError' || (err.message||'').includes('ermission'))
-      msg = '⛔ Kamera verweigert – bitte in Einstellungen erlauben.';
-    document.getElementById('camStatus').textContent = msg;
-  }
-}
-
-window.tapSnapshot = async function(e) {
-  const vid = document.getElementById('zxing-video');
-  const canvas = document.getElementById('zxing-canvas');
-  const ring = document.getElementById('focusRing');
-
-  // Fokus-Ring anzeigen
-  const rect = vid.getBoundingClientRect();
-  ring.style.left = (e.clientX - rect.left) + 'px';
-  ring.style.top  = (e.clientY - rect.top)  + 'px';
-  ring.style.display = 'block';
-  ring.style.opacity = '1';
-  ring.style.borderColor = '#fff';
-  setTimeout(() => { ring.style.opacity = '0'; setTimeout(() => ring.style.display = 'none', 300); }, 1200);
-
-  document.getElementById('camStatus').textContent = '📸 Analysiere…';
-
-  try {
-    // Snapshot vom aktuellen Frame als Bild-URL
-    canvas.width  = vid.videoWidth  || 1280;
-    canvas.height = vid.videoHeight || 720;
-    const ctx = canvas.getContext('2d');
-    ctx.filter = 'contrast(2) brightness(1.3) saturate(0)';
-    ctx.drawImage(vid, 0, 0, canvas.width, canvas.height);
-    ctx.filter = 'none';
-
-    // Als Image-Element laden und ZXing darauf anwenden
-    const imgSrc = canvas.toDataURL('image/png');
-    const img = new Image();
-    img.src = imgSrc;
-    await new Promise(r => img.onload = r);
-
-    const snapReader = new ZXingBrowser.BrowserMultiFormatReader();
-    const result = await snapReader.decodeFromImageElement(img);
-    const code = result.getText();
-
-    if (code) {
-      ring.style.borderColor = '#22c55e';
-      document.getElementById('detectedCode').textContent = code;
-      document.getElementById('detectedBar').style.display = 'block';
-      document.getElementById('camStatus').textContent = '✅ Barcode erkannt!';
-      lastScanned = code;
-      lastScannedTime = Date.now();
-      setTimeout(() => { closeCamera(); bIn.value = code; doScan(); }, 600);
-    }
-  } catch(err) {
-    document.getElementById('camStatus').textContent = '🔍 Nicht erkannt – nochmal tippen…';
-    setTimeout(() => {
-      document.getElementById('camStatus').textContent = '🔍 Barcode in den Rahmen halten…';
-    }, 2000);
-  }
-};
-
-window._torchOn = false;
-window.toggleTorch = async function() {
-  window._torchOn = !window._torchOn;
-  document.getElementById('torchBtn').textContent = window._torchOn ? '🔦 Licht aus' : '🔦 Licht';
-  document.getElementById('torchBtn').style.background = window._torchOn ? '#f97316' : '#333';
-  try {
-    const vid = document.getElementById('zxing-video');
-    if (vid?.srcObject) {
-      const track = vid.srcObject.getVideoTracks()[0];
-      if (track?.getCapabilities()?.torch !== undefined) {
-        await track.applyConstraints({ advanced: [{ torch: window._torchOn }] });
-      }
-    }
-  } catch(e) { toast('Taschenlampe nicht verfügbar auf diesem Gerät','e'); }
-};
-
-window.switchCam = function() {
-  camFacingBack = !camFacingBack;
-  startZxing();
+  document.getElementById('photoPreview').style.display = 'none';
+  document.getElementById('camLabel').style.display = 'block';
+  // Input zurücksetzen damit dasselbe Foto nochmal gewählt werden kann
+  document.getElementById('camInput').value = '';
 };
 
 window.closeCamera = function() {
-  if (zxingControls) { try { zxingControls.stop(); } catch(e){} zxingControls = null; }
-  if (zxingReader)   { try { zxingReader.reset();   } catch(e){} zxingReader   = null; }
-  const vid = document.getElementById('zxing-video');
-  if (vid?.srcObject) { vid.srcObject.getTracks().forEach(t => t.stop()); vid.srcObject = null; }
-  window._torchOn = false;
-  const tb = document.getElementById('torchBtn');
-  if (tb) { tb.textContent='🔦 Licht'; tb.style.background='#333'; }
-  document.getElementById('detectedBar').style.display = 'none';
   document.getElementById('camModal').classList.remove('open');
+  document.getElementById('photoPreview').style.display = 'none';
+  document.getElementById('camInput').value = '';
+};
+
+window.handlePhoto = async function(input) {
+  const file = input.files[0];
+  if (!file) return;
+
+  // Foto als Vorschau anzeigen
+  const url = URL.createObjectURL(file);
+  document.getElementById('photoImg').src = url;
+  document.getElementById('photoPreview').style.display = 'block';
+  document.getElementById('camLabel').style.display = 'none';
+  document.getElementById('photoStatus').textContent = '🔍 Analysiere Barcode…';
+
+  try {
+    // Bild laden
+    const img = new Image();
+    img.src = url;
+    await new Promise(r => { img.onload = r; });
+
+    // Auf Canvas zeichnen mit Kontrast-Boost
+    const canvas = document.createElement('canvas');
+    canvas.width  = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.filter = 'contrast(2) brightness(1.2) saturate(0)';
+    ctx.drawImage(img, 0, 0);
+
+    // ZXing auf Image anwenden
+    const snapReader = new ZXingBrowser.BrowserMultiFormatReader();
+    const result = await snapReader.decodeFromImageUrl(url);
+    const code = result.getText();
+
+    if (code) {
+      document.getElementById('photoStatus').textContent = '✅ Erkannt: ' + code;
+      const now = Date.now();
+      lastScanned = code;
+      lastScannedTime = now;
+      setTimeout(() => {
+        closeCamera();
+        bIn.value = code;
+        doScan();
+      }, 800);
+    }
+  } catch(err) {
+    document.getElementById('photoStatus').textContent = '❌ Nicht erkannt – nochmal versuchen';
+    document.getElementById('camLabel').style.display = 'block';
+    document.getElementById('camInput').value = '';
+  }
 };
 
 document.getElementById('camModal').addEventListener('click', e => {
@@ -2449,7 +2384,7 @@ window.exportBestellung = async function() {
 
 // ── BENUTZER & AUTH ───────────────────────────────────────────────────────────
 // Standard-Admin (immer vorhanden, nicht löschbar):
-const DEFAULT_USERS = { ADM: { pin:'1234', role:'admin' } };
+const DEFAULT_USERS = { ADM: { pin:'1209', role:'admin' } };
 let appUsers = {};
 let currentUser = null; // { kuerzel, role }
 
@@ -2563,7 +2498,10 @@ function renderUserList() {
         <div style="font-size:13px;font-weight:600;color:var(--text)">${u.name||'<span style="color:var(--muted);font-style:italic">kein Name</span>'}</div>
         <div style="font-size:11px;color:var(--muted);margin-top:1px">${u.role==='admin'?'⭐ Admin':'Mitarbeiter'}</div>
       </div>
-      ${k==='ADM'?'<span style="font-size:11px;color:#bbb">System</span>':`<button onclick="deleteUser('${k}')" style="background:#fdecea;color:var(--red);border:1px solid #f5c6c3;border-radius:8px;padding:4px 10px;font-size:12px;cursor:pointer;flex-shrink:0">Löschen</button>`}
+      <div style="display:flex;gap:6px;flex-shrink:0">
+        <button onclick="openPinModalFor('${k}')" style="background:#e8f4fd;color:#1a6fa8;border:1px solid #b3d7f0;border-radius:8px;padding:4px 10px;font-size:12px;cursor:pointer">🔑 PIN</button>
+        ${k==='ADM'?'<span style="font-size:11px;color:#bbb;padding:4px 6px">System</span>':`<button onclick="deleteUser('${k}')" style="background:#fdecea;color:var(--red);border:1px solid #f5c6c3;border-radius:8px;padding:4px 10px;font-size:12px;cursor:pointer">Löschen</button>`}
+      </div>
     </div>`).join('');
 }
 
@@ -2573,7 +2511,7 @@ window.createUser = function() {
   const role = document.getElementById('newUserRole').value;
   const name = document.getElementById('newUserName').value.trim();
   if (k.length !== 3)            { toast('Kürzel muss genau 3 Buchstaben sein', 'e'); return; }
-  if (!/^[0-9]{4,8}$/.test(pin)) { toast('PIN muss 4–8 Ziffern sein', 'e'); return; }
+  if (!/^[0-9]{4,6}$/.test(pin)) { toast('PIN muss 4–6 Ziffern sein', 'e'); return; }
   appUsers = getUsers();
   if (appUsers[k])               { toast('Kürzel "'+k+'" bereits vergeben', 'e'); return; }
   appUsers[k] = { pin, role, name };
@@ -2594,6 +2532,61 @@ window.deleteUser = function(k) {
   toast('Benutzer ' + k + ' gelöscht', 'i');
 };
 
+
+// ── PIN ÄNDERN ────────────────────────────────────────────────────────────────
+let pinModalTarget = null; // Kürzel des Users dessen PIN geändert wird
+
+window.openPinModal = function() {
+  // Für eigenen Account
+  pinModalTarget = currentUser.kuerzel;
+  document.getElementById('pinOld').value  = '';
+  document.getElementById('pinNew1').value = '';
+  document.getElementById('pinNew2').value = '';
+  document.getElementById('pinModal').classList.add('open');
+  setTimeout(() => document.getElementById('pinOld').focus(), 200);
+};
+
+window.openPinModalFor = function(k) {
+  // Admin ändert PIN für anderen User (ohne alte PIN Abfrage)
+  pinModalTarget = k;
+  document.getElementById('pinOld').value  = '';
+  document.getElementById('pinNew1').value = '';
+  document.getElementById('pinNew2').value = '';
+  const isOwnPin = k === currentUser.kuerzel;
+  document.querySelector('#pinModal label').textContent = isOwnPin ? 'Aktuelle PIN' : 'Admin PIN (deine eigene)';
+  document.getElementById('pinModal').classList.add('open');
+  setTimeout(() => document.getElementById('pinOld').focus(), 200);
+};
+
+window.closePinModal = function() {
+  document.getElementById('pinModal').classList.remove('open');
+  pinModalTarget = null;
+};
+
+window.savePinChange = function() {
+  const old  = document.getElementById('pinOld').value.trim();
+  const new1 = document.getElementById('pinNew1').value.trim();
+  const new2 = document.getElementById('pinNew2').value.trim();
+
+  if (!/^[0-9]{4,6}$/.test(old))  { toast('Aktuelle PIN: 4–6 Ziffern', 'e'); return; }
+  if (!/^[0-9]{4,6}$/.test(new1)) { toast('Neue PIN: 4–6 Ziffern', 'e'); return; }
+  if (new1 !== new2)               { toast('Neue PINs stimmen nicht überein', 'e'); return; }
+
+  appUsers = getUsers();
+  const isOwnPin = pinModalTarget === currentUser.kuerzel;
+
+  // Verifizierung: eigene alte PIN oder Admin-PIN
+  const verifyUser = isOwnPin ? pinModalTarget : currentUser.kuerzel;
+  if (appUsers[verifyUser]?.pin !== old) {
+    toast('Falsche PIN – bitte nochmal', 'e'); return;
+  }
+
+  appUsers[pinModalTarget].pin = new1;
+  saveUsers(appUsers);
+  closePinModal();
+  toast('✅ PIN erfolgreich geändert', 's');
+  if (!isOwnPin) renderUserList();
+};
 
 // ── PIN MASKING ───────────────────────────────────────────────────────────────
 window.onPinInput = function() {
