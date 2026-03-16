@@ -927,7 +927,7 @@ select.fi2{appearance:none}
         <strong style="color:var(--text)">Claude</strong> · KI-Assistent von Anthropic
       </p>
       <p style="font-size:11px;color:var(--muted);margin-top:10px;letter-spacing:1px">
-        Version 0.88
+        Version 0.89
       </p>
     </div>
     <button class="btn btn-surface" style="width:100%;margin-top:16px" onclick="document.getElementById('impressumModal').classList.remove('open')">Schließen</button>
@@ -1258,7 +1258,7 @@ window.showDashPopup = function(type) {
           const f = mhdFarbe(m-1);
           return `<span style="display:inline-flex;align-items:center;gap:4px;background:${st?.bg||'#f0fdf4'};color:${st?.color||'#22c55e'};border-radius:12px;padding:2px 8px;font-size:11px;font-weight:600;margin:2px">
             <span style="width:10px;height:10px;border-radius:50%;background:${f.farbe};display:inline-block;border:1px solid rgba(0,0,0,.15)"></span>
-            ${f.monat.slice(0,3)} ${y} &nbsp;<button onclick="removeMhd('${p.id||Object.keys(products).find(k=>products[k]===p)}','${d}')" style="background:none;border:none;cursor:pointer;color:#999;font-size:11px;padding:0;line-height:1">✕</button>
+            ${f.monat.slice(0,3)} ${y}
           </span>`;
         }).join('');
         return `<div class="dash-top-item">
