@@ -443,7 +443,6 @@ select.fi2{appearance:none}
     <div class="mbtns" style="margin-top:14px">
       <button class="btn btn-surface" style="flex:1" onclick="closeUserMgmt()">Schließen</button>
     </div>
-    <button class="btn btn-surface" style="width:100%;margin-top:8px;color:var(--red)" onclick="logoutFromAdmin()">⏻ Abmelden</button>
   </div>
 </div>
 
@@ -1121,17 +1120,16 @@ function renderList() {
     .map(([id,p])=>({id,...p}))
     .filter(p => p.name?.toLowerCase().includes(q) || (p.barcode||'').includes(q) || (p.kategorie||'').toLowerCase().includes(q) || (p.marke||'').toLowerCase().includes(q))
     .sort((a,b) => {
-      // 1. MHD bald ablaufend zuerst (rot = kritisch)
-      const aNextMhd = (a.mhdList||[]).sort()[0];
-      const bNextMhd = (b.mhdList||[]).sort()[0];
-      const aMhdKrit = aNextMhd ? (mhdStatus(aNextMhd)?.color==='#ef4444' ? 0 : mhdStatus(aNextMhd)?.color==='#f97316' ? 1 : 2) : 3;
-      const bMhdKrit = bNextMhd ? (mhdStatus(bNextMhd)?.color==='#ef4444' ? 0 : mhdStatus(bNextMhd)?.color==='#f97316' ? 1 : 2) : 3;
-      if (aMhdKrit !== bMhdKrit) return aMhdKrit - bMhdKrit;
-      // 2. Mindestbestand-Alarm
+      const mhdScore = p => {
+        const n = (p.mhdList||[]).sort()[0];
+        if (!n) return 9;
+        const s = mhdStatus(n);
+        return s?.color==='#ef4444' ? 0 : s?.color==='#f97316' ? 1 : 2;
+      };
+      if (mhdScore(a) !== mhdScore(b)) return mhdScore(a) - mhdScore(b);
       const aLow = a.kaesten < (a.minBestand||0) ? 0 : 1;
       const bLow = b.kaesten < (b.minBestand||0) ? 0 : 1;
       if (aLow !== bLow) return aLow - bLow;
-      // 3. Alphabetisch
       return (a.name||'').localeCompare(b.name||'');
     });
 
@@ -1444,14 +1442,6 @@ window.doArtScan = function() {
 // invScanIn – filtert Liste per Scan oder Texteingabe
 let invScanTimer = null;
 document.addEventListener('DOMContentLoaded', () => {
-  // Screen in Portrait sperren
-  try {
-    if (screen.orientation?.lock) screen.orientation.lock('portrait').catch(()=>{});
-  } catch(e) {}
-  // MHD Input Listener
-  const mi = document.getElementById('mhdIn');
-  if (mi) mi.addEventListener('change', updateMhdHint);
-
   const invEl = document.getElementById('invScanIn');
   if (!invEl) return;
   invEl.addEventListener('input', () => {
@@ -1556,6 +1546,10 @@ window.updateMhdHint = function() {
   hint.style.display = 'block';
   hint.innerHTML = `Sticker-Farbe: <span style="display:inline-block;background:${f.farbe};color:${['⚪','🩷'].includes(f.emoji)?'#333':'#fff'};border-radius:20px;padding:2px 12px;font-weight:700;font-size:13px;border:1px solid rgba(0,0,0,.1)">${f.emoji} ${f.name}</span>&nbsp;<span style="font-size:12px;color:${st?.color}">${st?.label||''}</span>`;
 };
+document.addEventListener('DOMContentLoaded', () => {
+  const mi = document.getElementById('mhdIn');
+  if (mi) mi.addEventListener('change', updateMhdHint);
+});
 
 window.applyChange = async function(dir) {
   const k = parseInt(document.getElementById('qK').value)||0;
@@ -2135,7 +2129,8 @@ window.closeCamera = function() {
     try { Quagga.stop(); } catch(e) {}
     quaggaRunning = false;
   }
-    const tb = document.getElementById('torchBtn');
+  window._torchOn = false;
+  const tb = document.getElementById('torchBtn');
   if (tb) { tb.textContent='🔦 Licht'; tb.style.background='#333'; }
   document.getElementById('quagga-container').innerHTML = '';
   document.getElementById('detectedBar').style.display = 'none';
@@ -2592,7 +2587,6 @@ window.openUserMgmt = function() {
   }
 };
 window.closeUserMgmt = function() { document.getElementById('userMgmtModal').classList.remove('open'); };
-window.logoutFromAdmin = function() { closeUserMgmt(); logoutUser(); };
 
 function renderUserList() {
   appUsers = getUsers();
@@ -2641,7 +2635,6 @@ window.deleteUser = function(k) {
 
 // ── PIN ÄNDERN ────────────────────────────────────────────────────────────────
 let pinModalTarget = null;
-
 window.openPinModal = function() {
   pinModalTarget = currentUser.kuerzel;
   document.getElementById('pinOldLabel').textContent = 'Aktuelle PIN';
@@ -2651,7 +2644,6 @@ window.openPinModal = function() {
   document.getElementById('pinModal').classList.add('open');
   setTimeout(() => document.getElementById('pinOld').focus(), 200);
 };
-
 window.openPinModalFor = function(k) {
   pinModalTarget = k;
   document.getElementById('pinOldLabel').textContent = k === currentUser.kuerzel ? 'Aktuelle PIN' : 'Deine Admin-PIN zur Bestätigung';
@@ -2661,12 +2653,10 @@ window.openPinModalFor = function(k) {
   document.getElementById('pinModal').classList.add('open');
   setTimeout(() => document.getElementById('pinOld').focus(), 200);
 };
-
 window.closePinModal = function() {
   document.getElementById('pinModal').classList.remove('open');
   pinModalTarget = null;
 };
-
 window.savePinChange = function() {
   const old  = document.getElementById('pinOld').value.trim();
   const new1 = document.getElementById('pinNew1').value.trim();
@@ -2675,14 +2665,14 @@ window.savePinChange = function() {
   if (!/^[0-9]{4,6}$/.test(new1)) { toast('Neue PIN: 4–6 Ziffern', 'e'); return; }
   if (new1 !== new2)               { toast('Neue PINs stimmen nicht überein', 'e'); return; }
   appUsers = getUsers();
-  const verifyUser = currentUser.kuerzel;
-  if (appUsers[verifyUser]?.pin !== old) { toast('Falsche PIN – bitte nochmal', 'e'); return; }
+  if (appUsers[currentUser.kuerzel]?.pin !== old) { toast('Falsche PIN – bitte nochmal', 'e'); return; }
   appUsers[pinModalTarget].pin = new1;
   saveUsers(appUsers);
   closePinModal();
   toast('✅ PIN erfolgreich geändert', 's');
   renderUserList();
 };
+window.logoutFromAdmin = function() { closeUserMgmt(); logoutUser(); };
 
 // ── PIN MASKING ───────────────────────────────────────────────────────────────
 window.onPinInput = function() {
@@ -2746,7 +2736,7 @@ window.renderDashboard = function() {
     <div class="dash-card" onclick="showDashPopup('mhd')" style="cursor:pointer;${mhdAlarm>0?'border-color:#f97316;background:#fff3e0':''}">
       <div class="dash-val" style="${mhdAlarm>0?'color:#f97316':''}">${mhdAlarm}</div>
       <div class="dash-label">📅 MHD Alarm</div>
-    </div>\`;
+    </div>`;
 
   // Alarm list
   document.getElementById('dashAlarmCt').textContent = alarmCount;
