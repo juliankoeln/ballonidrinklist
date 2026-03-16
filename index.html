@@ -443,6 +443,7 @@ select.fi2{appearance:none}
     <div class="mbtns" style="margin-top:14px">
       <button class="btn btn-surface" style="flex:1" onclick="closeUserMgmt()">Schließen</button>
     </div>
+    <button class="btn btn-surface" style="width:100%;margin-top:8px;color:var(--red)" onclick="logoutFromAdmin()">⏻ Abmelden</button>
   </div>
 </div>
 
@@ -926,7 +927,7 @@ select.fi2{appearance:none}
         <strong style="color:var(--text)">Claude</strong> · KI-Assistent von Anthropic
       </p>
       <p style="font-size:11px;color:var(--muted);margin-top:10px;letter-spacing:1px">
-        Version 0.85
+        Version 0.86
       </p>
     </div>
     <button class="btn btn-surface" style="width:100%;margin-top:16px" onclick="document.getElementById('impressumModal').classList.remove('open')">Schließen</button>
@@ -1257,7 +1258,12 @@ window.showDashPopup = function(type) {
             ${f.monat.slice(0,3)} ${y} &nbsp;<button onclick="removeMhd('${p.id||Object.keys(products).find(k=>products[k]===p)}','${d}')" style="background:none;border:none;cursor:pointer;color:#999;font-size:11px;padding:0;line-height:1">✕</button>
           </span>`;
         }).join('');
-        return { name:p.name, sub: dates };
+        return `<div class="dash-top-item">
+          <div style="flex:1">
+            <div style="font-size:13px;font-weight:600;margin-bottom:4px">${p.name}</div>
+            <div>${dates}</div>
+          </div>
+        </div>`;
       });
   } else if (type === 'fass') {
     title = '🛢️ Fässer';
