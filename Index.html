@@ -1,0 +1,2707 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>🍺 Getränke Lager</title>
+
+<!-- Firebase -->
+
+<script>
+// ── SERVICE WORKER ────────────────────────────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js')
+    .then(reg => console.log('SW registriert'))
+    .catch(e => console.warn('SW Fehler:', e));
+}
+// Online/Offline Events
+window.addEventListener('online', () => {
+  document.getElementById('syncDot')?.classList.remove('offline-mode');
+  if (typeof syncOfflineQueue === 'function') syncOfflineQueue();
+});
+window.addEventListener('offline', () => {
+  document.getElementById('syncDot')?.classList.add('offline-mode');
+  if (typeof toast === 'function') toast('📵 Offline – Buchungen werden zwischengespeichert', 'e');
+});
+</script>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getDatabase, ref, set, onValue, push, remove, update }
+    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+  // ── FIREBASE CONFIG ──────────────────────────────────────────────────────────
+  // 👇 HIER deine eigene Firebase-Config eintragen (siehe Anleitung unten)
+  const firebaseConfig = {
+    apiKey: "AIzaSyBiTrk_cWh4HiT-PNDXgbQGKCYwwZMcAEA",
+    authDomain: "drinklistballoni.firebaseapp.com",
+    databaseURL: "https://drinklistballoni-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "drinklistballoni",
+    storageBucket: "drinklistballoni.firebasestorage.app",
+    messagingSenderId: "237674581515",
+    appId: "1:237674581515:web:e71f27e390ac0d0bbec10e"
+  };
+  // ────────────────────────────────────────────────────────────────────────────
+
+  let app, db, connected = false;
+
+  try {
+    app = initializeApp(firebaseConfig);
+    db  = getDatabase(app);
+    connected = true;
+  } catch(e) { console.warn("Firebase init failed", e); }
+
+  window.__fb = { db, ref, set, onValue, push, remove, update, connected };
+</script>
+
+<!-- Barcode scanner (Quagga2 - besser auf iPhone/Android) -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+<script src="https://unpkg.com/@zxing/browser@latest"></script>
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&display=swap');
+
+:root {
+  --bg:#f2f1ee; --surface:#ffffff; --card:#ffffff; --border:#dddbd6;
+  --accent:#1a1a1a; --accent2:#c8a84b; --green:#1a7a4a; --red:#c0392b;
+  --blue:#1a5fa8; --text:#1a1a1a; --muted:#888; --muted2:#ccc; --r:10px;
+  --shadow:0 1px 4px rgba(0,0,0,.07);
+}
+[data-theme="dark"] {
+  --bg:#111214; --surface:#1e2024; --card:#1e2024; --border:#2e3138;
+  --accent:#f0f0f0; --text:#f0f0f0; --muted:#8a8f98; --muted2:#444;
+  --shadow:0 1px 4px rgba(0,0,0,.4);
+}
+[data-theme="dark"] body { background:var(--bg); color:var(--text); }
+[data-theme="dark"] header { background:var(--surface); border-color:var(--border); }
+[data-theme="dark"] .bnav { background:var(--surface); border-color:var(--border); }
+[data-theme="dark"] .modal { background:var(--surface); }
+[data-theme="dark"] .login-box { background:var(--surface); border-color:var(--border); }
+[data-theme="dark"] .login-input { background:var(--bg); border-color:var(--border); color:var(--text); }
+[data-theme="dark"] .search-bar { background:var(--surface); border-color:var(--border); color:var(--text); }
+[data-theme="dark"] .fi2 { background:var(--bg); border-color:var(--border); color:var(--text); }
+[data-theme="dark"] .fi2:focus { background:var(--bg); border-color:#888; color:var(--text); }
+[data-theme="dark"] input { background:var(--bg); color:var(--text); }
+[data-theme="dark"] input:focus { background:var(--bg); color:var(--text); outline:none; }
+[data-theme="dark"] select { background:var(--bg); color:var(--text); border-color:var(--border); }
+[data-theme="dark"] .login-input { background:var(--bg); border-color:var(--border); color:var(--text); }
+[data-theme="dark"] .qty-in { background:var(--surface); border-color:var(--border); color:var(--text); }
+[data-theme="dark"] .inv-in { background:var(--bg); border-color:var(--border); color:var(--text); }
+[data-theme="dark"] #loginScreen { background:var(--bg); }
+[data-theme="dark"] .nbtn { color:var(--muted); }
+[data-theme="dark"] .nbtn.active { color:var(--text); }
+[data-theme="dark"] select option { background:var(--surface); }
+[data-theme="dark"] .pcard { background:var(--card); border-color:var(--border); }
+[data-theme="dark"] .acard { background:var(--card); border-color:var(--border); }
+[data-theme="dark"] .hitem { background:var(--card); border-color:var(--border); }
+[data-theme="dark"] .inv-card { background:var(--card); border-color:var(--border); }
+[data-theme="dark"] .best-pos { background:var(--card); border-color:var(--border); }
+[data-theme="dark"] .dash-card { background:var(--card); border-color:var(--border); }
+[data-theme="dark"] .dash-alarm { background:var(--card); }
+[data-theme="dark"] .dash-top-item { background:var(--card); border-color:var(--border); }
+[data-theme="dark"] .dash-bar-wrap { background:var(--border); }
+[data-theme="dark"] .dash-bar { background:var(--text); }
+[data-theme="dark"] #foundCard { background:var(--card); border-color:var(--border); }
+[data-theme="dark"] .scan-strip { background:var(--surface); border-color:var(--border); }
+[data-theme="dark"] .scan-row { background:var(--surface); }
+[data-theme="dark"] #scanStrip { background:var(--surface); }
+[data-theme="dark"] .scan-in { background:var(--bg); border-color:var(--border); color:var(--text); }
+[data-theme="dark"] .badge { background:var(--border); color:var(--muted); }
+[data-theme="dark"] .sec-title { color:var(--muted); }
+[data-theme="dark"] .fab { background:var(--text); color:var(--bg); }
+[data-theme="dark"] .toast { background:var(--surface); border-color:var(--border); color:var(--text); }
+[data-theme="dark"] .btn-surface { background:var(--border); color:var(--text); border-color:var(--border); }
+[data-theme="dark"] .overlay { background:rgba(0,0,0,.7); }
+[data-theme="dark"] #setupBanner { background:#2a1f0e; border-color:#5a3e1b; color:#f0c070; }
+[data-theme="dark"] .pname,.acard-name { color:var(--text); }
+[data-theme="dark"] .slow { background:#3a1a1a; color:var(--red); }
+[data-theme="dark"] #pinDots { background:var(--bg); border-color:var(--border); }
+[data-theme="dark"] .inv-save { background:#e0e0e0; color:#111; }
+[data-theme="dark"] .qty-in { background:var(--bg); border-color:var(--border); color:var(--text); }
+[data-theme="dark"] .inv-in:focus { background:var(--bg); border-color:#888; }
+[data-theme="dark"] .qty-in:focus { background:var(--bg); color:var(--text); outline:none; }
+[data-theme="dark"] .login-btn { background:var(--text); color:var(--bg); }
+[data-theme="dark"] .best-del { background:var(--border); color:var(--text); }
+[data-theme="dark"] .hbadge.p { background:#1a3a2a; }
+[data-theme="dark"] .hbadge.m { background:#3a1a1a; }
+[data-theme="dark"] .hbadge.best { background:#3a3010; }
+[data-theme="dark"] .hbadge.edit { background:#1a2a4a; }
+[data-theme="dark"] .hbadge.del { background:#3a1a1a; }
+[data-theme="dark"] .pcard.low { background:#2a1a1a; border-color:#5a2a2a; }
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;display:flex;flex-direction:column}
+
+/* HEADER */
+header{background:#fff;border-bottom:2px solid #1a1a1a;padding:8px 14px;flex-shrink:0;display:flex;align-items:center;gap:10px;box-shadow:0 2px 6px rgba(0,0,0,.06)}
+.hstats{display:flex;gap:10px;font-size:10px;color:var(--muted);text-align:center}
+.hstats b{display:block;font-size:16px;font-weight:700;color:var(--text)}
+.sync-dot{width:8px;height:8px;border-radius:50%;background:var(--muted2);flex-shrink:0}
+.sync-dot.ok{background:var(--green);box-shadow:0 0 5px rgba(26,122,74,.4)}
+.sync-dot.err{background:var(--red)}
+.sync-dot.offline-mode{background:#f59e0b;box-shadow:0 0 5px rgba(245,158,11,.5);animation:pulse 1.5s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* SCANNER STRIP */
+#scanStrip{background:var(--surface);border-bottom:1px solid var(--border);padding:8px 12px;flex-shrink:0;overflow-y:auto;max-height:52vh}
+.scan-row{display:flex;gap:6px;margin-bottom:8px;background:var(--bg);padding:8px;border-radius:var(--r)}
+.scan-in{flex:1;background:var(--surface);border:2px solid var(--border);border-radius:var(--r);padding:10px 12px;color:var(--text);font-size:15px;font-family:'DM Sans',sans-serif;outline:none;transition:border-color .2s}
+.scan-in:focus{border-color:#1a1a1a}
+.btn{border:none;border-radius:var(--r);padding:10px 14px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap}
+.btn:active{transform:scale(.95)}
+.btn-accent{background:#1a1a1a;color:#fff}
+.btn-blue{background:var(--blue);color:#fff}
+.btn-surface{background:var(--surface);color:var(--text);border:1px solid var(--border)}
+.btn-green{background:var(--green);color:#fff}
+.btn-red{background:var(--red);color:#fff}
+.btn-sm{padding:7px 11px;font-size:12px}
+
+#foundCard{background:#fffcf2;border:2px solid var(--accent2);border-radius:var(--r);padding:8px 10px;margin-bottom:8px;display:none}
+#foundCard.show{display:block}
+#foundCard .fn{font-size:15px;font-weight:600;margin-bottom:2px}
+#foundCard .fi{font-size:12px;color:var(--muted);display:flex;gap:14px}
+#foundCard .fi strong{color:#8a6e1a;font-size:14px}
+
+.qty-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.qty-block{background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:8px}
+.qty-block label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:5px}
+.qty-row{display:flex;align-items:center;gap:5px}
+.qbtn{width:38px;height:38px;border:none;border-radius:8px;font-size:22px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s}
+.qbtn:active{transform:scale(.88)}
+.qbtn.m{background:#fdecea;color:var(--red);border:1px solid #f5c6c3}
+.qbtn.p{background:#e6f4ed;color:var(--green);border:1px solid #b8dfc9}
+.qty-in{flex:1;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px;color:var(--text);font-size:17px;font-weight:600;text-align:center;font-family:'DM Sans',sans-serif;min-width:0}
+.act-row{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}
+
+/* MAIN */
+main{flex:1;overflow-y:auto;padding:14px 14px 80px;background:var(--bg)}
+
+/* TOOLBAR */
+.toolbar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.search-bar{flex:1;min-width:120px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:11px 13px;color:var(--text);font-size:15px;font-family:'DM Sans',sans-serif;outline:none;box-shadow:var(--shadow)}
+.search-bar:focus{border-color:#1a1a1a}
+.sec-title{font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1px;color:var(--muted);margin-bottom:10px;display:flex;align-items:center;justify-content:space-between}
+.badge{font-family:'DM Sans',sans-serif;font-size:11px;background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:2px 9px;color:var(--muted)}
+
+/* PRODUCT CARDS */
+.pcard{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:12px;display:flex;align-items:center;gap:10px;margin-bottom:7px;transition:all .2s;box-shadow:var(--shadow)}
+.pcard.low{border-left:3px solid var(--red)}
+.pcard:active{box-shadow:0 2px 8px rgba(0,0,0,.12)}
+.pcard.sel-mode{cursor:pointer}
+.pcard.selected{border:2px solid var(--accent);background:color-mix(in srgb, var(--accent) 8%, var(--surface))}
+[data-theme="dark"] .pcard.selected{background:color-mix(in srgb, var(--accent) 15%, var(--surface))}
+.picon{width:40px;height:40px;border-radius:9px;background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;border:1px solid var(--border)}
+.pdet{flex:1;min-width:0}
+.pname{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pbar{font-size:10px;color:var(--muted);font-family:monospace;margin-top:1px}
+.ptag{font-size:9px;background:var(--bg);color:var(--muted);padding:1px 7px;border-radius:20px;display:inline-block;margin-top:3px;border:1px solid var(--border)}
+.pstock{text-align:right;flex-shrink:0}
+.sk{font-family:'Bebas Neue',sans-serif;font-size:20px;color:#1a1a1a;line-height:1}
+.sf{font-size:11px;color:var(--muted);margin-top:1px}
+.slow{font-size:9px;color:var(--red);margin-top:3px}
+
+/* HISTORY */
+.hitem{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:11px 13px;margin-bottom:7px;display:flex;align-items:center;gap:10px;box-shadow:var(--shadow)}
+.hbadge{width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.hbadge.p{background:#e6f4ed}
+.hbadge.m{background:#fdecea}
+.hbadge.best{background:#fff3cd}
+.hbadge.edit{background:#e8f0fe}
+.hbadge.del{background:#fdecea}
+.hdet{flex:1}
+.hn{font-size:13px;font-weight:500}
+.hm{font-size:11px;color:var(--muted);margin-top:1px}
+.hch{font-size:13px;font-weight:600}
+.hch.p{color:var(--green)}
+.hch.m{color:var(--red)}
+.hch.best{color:#856404}
+.hch.edit{color:#3b5bdb}
+.hch.del{color:var(--red)}
+
+/* MODAL */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:300;align-items:flex-end;justify-content:center}
+.overlay.open{display:flex}
+.modal{background:var(--surface);border-radius:20px 20px 0 0;padding:22px 18px;width:100%;max-width:500px;max-height:88vh;overflow-y:auto;border-top:3px solid #1a1a1a}
+.modal h2{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:1px;color:#1a1a1a;margin-bottom:14px}
+.fg{margin-bottom:10px}
+.fg label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:5px}
+.fi2{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:12px 13px;color:var(--text);font-size:15px;font-family:'DM Sans',sans-serif;outline:none}
+.fi2:focus{border-color:var(--accent);background:var(--surface)}
+select.fi2{appearance:none}
+.mbtns{display:flex;gap:8px;margin-top:14px}
+
+/* CAMERA */
+#camModal .modal{background:#000;padding:0;border-radius:16px 16px 0 0;overflow:hidden;border-top:none}
+#camModal { touch-action: none; }
+
+/* SETUP BANNER */
+#setupBanner{background:#fffcf2;border:1px solid var(--accent2);border-radius:var(--r);padding:14px;margin-bottom:14px;font-size:13px;line-height:1.6;display:none}
+#setupBanner.show{display:block}
+#setupBanner h3{font-family:'Bebas Neue',sans-serif;font-size:18px;color:#1a1a1a;margin-bottom:6px}
+#setupBanner code{background:#fff;padding:2px 6px;border-radius:4px;font-size:12px;color:var(--green);border:1px solid var(--border)}
+
+/* VIEWS */
+.view{display:none}
+.view.active{display:block}
+
+/* ARTIKEL CARDS */
+.acard{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px;margin-bottom:8px;box-shadow:var(--shadow)}
+.acard-top{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.acard-icon{width:40px;height:40px;border-radius:9px;background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;border:1px solid var(--border)}
+.acard-info{flex:1;min-width:0}
+.acard-name{font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.acard-bar{font-size:10px;color:var(--muted);font-family:monospace;margin-top:1px}
+.acard-tag{font-size:9px;background:var(--bg);color:var(--muted);padding:1px 7px;border-radius:20px;display:inline-block;margin-top:3px;border:1px solid var(--border)}
+.acard-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px}
+.astat{background:var(--bg);border-radius:8px;padding:7px 8px;text-align:center;border:1px solid var(--border)}
+.astat-val{font-family:'Bebas Neue',sans-serif;font-size:18px;color:#1a1a1a;line-height:1}
+.astat-lbl{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:1px}
+.acard-btns{display:flex;gap:7px}
+.low-badge{background:#fdecea;color:var(--red);font-size:10px;padding:3px 8px;border-radius:20px;display:inline-flex;align-items:center;gap:4px;margin-left:6px;border:1px solid #f5c6c3}
+
+/* DELETE */
+#delModal .modal{border-top:3px solid var(--red)}
+#delModal h2{color:var(--red)}
+#delModal p{font-size:14px;color:var(--muted);margin-bottom:16px;line-height:1.6}
+#delModal strong{color:var(--text)}
+
+/* TOAST */
+.toast{position:fixed;bottom:72px;left:50%;transform:translateX(-50%) translateY(16px);background:#fff;border:1px solid var(--border);border-radius:30px;padding:10px 22px;font-size:13px;font-weight:500;opacity:0;transition:all .25s;z-index:400;white-space:nowrap;max-width:90vw;pointer-events:none;box-shadow:0 4px 16px rgba(0,0,0,.1)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.s{border-color:var(--green);color:var(--green)}
+.toast.e{border-color:var(--red);color:var(--red)}
+.toast.i{border-color:var(--accent2);color:#8a6e1a}
+
+/* FAB */
+.fab{position:fixed;bottom:18px;right:18px;width:52px;height:52px;background:#1a1a1a;border:none;border-radius:50%;font-size:26px;color:#fff;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.22);z-index:200;display:flex;align-items:center;justify-content:center;transition:all .2s}
+.fab:active{transform:scale(.9)}
+
+/* BOTTOM NAV */
+.bnav{position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:2px solid #1a1a1a;display:flex;z-index:200}
+.nbtn{flex:1;padding:9px 4px 5px;background:none;border:none;color:var(--muted);cursor:pointer;font-size:10px;font-family:'DM Sans',sans-serif;transition:color .2s;display:flex;flex-direction:column;align-items:center;gap:2px}
+.nbtn .ni{font-size:19px}
+.nbtn.active{color:#1a1a1a;font-weight:700}
+
+.empty{text-align:center;padding:36px 20px;color:var(--muted)}
+.empty .ei{font-size:44px;margin-bottom:10px}
+.empty p{font-size:14px;line-height:1.6}
+
+/* LOGIN */
+#loginScreen{position:fixed;inset:0;background:#f2f1ee;z-index:999;display:flex;align-items:center;justify-content:center;flex-direction:column;padding:32px}
+#loginScreen.hidden{display:none}
+.login-box{background:#fff;border-radius:20px;padding:36px 28px;width:100%;max-width:360px;border:2px solid #1a1a1a;box-shadow:0 8px 32px rgba(0,0,0,.10)}
+.login-logo{font-family:'Bebas Neue',sans-serif;font-size:36px;letter-spacing:3px;color:#1a1a1a;margin-bottom:4px}
+.login-sub{font-size:13px;color:#888;margin-bottom:28px;letter-spacing:1px}
+.login-label{font-size:11px;color:#888;text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:6px}
+.login-input{width:100%;background:#f2f1ee;border:2px solid #dddbd6;border-radius:10px;padding:14px 16px;font-size:18px;font-family:'DM Sans',sans-serif;outline:none;color:#1a1a1a;letter-spacing:4px;margin-bottom:16px;transition:border-color .2s}
+.login-input:focus{border-color:var(--accent);background:var(--surface)}
+.login-btn{width:100%;background:#1a1a1a;color:#fff;border:none;border-radius:10px;padding:15px;font-size:16px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;transition:all .15s}
+.login-btn:active{transform:scale(.97)}
+.login-err{color:#c0392b;font-size:13px;margin-top:10px;text-align:center;min-height:20px}
+
+/* DASHBOARD */
+.dash-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:4px}
+.dash-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px 14px;box-shadow:var(--shadow);text-align:center}
+.dash-val{font-family:"Bebas Neue",sans-serif;font-size:38px;letter-spacing:2px;color:var(--text);line-height:1}
+.dash-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-top:4px}
+.dash-alarm{background:var(--surface);border:1px solid #f5c6c3;border-left:4px solid var(--red);border-radius:var(--r);padding:10px 14px;margin-bottom:8px;display:flex;align-items:center;gap:10px}
+.dash-top-item{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:10px 14px;margin-bottom:6px;display:flex;align-items:center;gap:10px}
+.dash-bar-wrap{flex:1;background:var(--bg);border-radius:4px;height:8px;overflow:hidden}
+.dash-bar{height:8px;background:#1a1a1a;border-radius:4px;transition:width .4s}
+
+/* EINHEIT BUTTONS */
+.einheit-btn{border:2px solid var(--border);background:var(--surface);border-radius:var(--r);padding:10px 6px;font-size:18px;text-align:center;cursor:pointer;transition:all .15s;font-family:'DM Sans',sans-serif;color:var(--text);line-height:1.4}
+.einheit-btn span{display:block;font-size:11px;font-weight:600;margin-top:3px;text-transform:uppercase;letter-spacing:.5px}
+.einheit-btn.active{border-color:var(--accent);background:var(--accent);color:var(--bg)}
+[data-theme="dark"] .einheit-btn{background:var(--surface);border-color:var(--border);color:var(--text)}
+[data-theme="dark"] .einheit-btn.active{background:var(--text);color:var(--bg);border-color:var(--text)}
+
+/* INVENTUR */
+.inv-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:12px;margin-bottom:8px;box-shadow:var(--shadow)}
+.inv-top{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.inv-name{font-size:14px;font-weight:600;color:var(--text);flex:1}
+.inv-bar{font-size:10px;color:var(--muted);font-family:monospace}
+.inv-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.inv-field label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:4px}
+.inv-in{width:100%;background:var(--bg);border:2px solid var(--border);border-radius:8px;padding:10px;font-size:18px;font-weight:600;text-align:center;font-family:'DM Sans',sans-serif;color:var(--text);outline:none}
+.inv-in:focus{border-color:#1a1a1a;background:var(--surface)}
+.inv-save{width:100%;margin-top:10px;background:#1a1a1a;color:#fff;border:none;border-radius:8px;padding:10px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;font-size:14px}
+.inv-save:active{transform:scale(.97)}
+.inv-saved{background:#e6f4ed;color:var(--green);border-color:#b8dfc9}
+
+/* BESTELLUNG */
+.best-pos{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:12px;margin-bottom:8px;box-shadow:var(--shadow);display:flex;align-items:center;gap:10px}
+.best-icon{width:36px;height:36px;border-radius:8px;background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;border:1px solid var(--border)}
+.best-info{flex:1;min-width:0}
+.best-name{font-size:13px;font-weight:600;color:var(--text)}
+.best-qty{font-size:11px;color:var(--muted);margin-top:2px}
+.best-del{background:#fdecea;color:var(--red);border:none;border-radius:8px;width:32px;height:32px;font-size:18px;cursor:pointer;flex-shrink:0}
+</style>
+</head>
+<body>
+
+<!-- LOGIN SCREEN -->
+<div id="loginScreen">
+  <div class="login-box">
+    <div class="login-logo">Drinkventory</div>
+    <div class="login-sub">Getränkelagerverwaltung</div>
+    <div id="loginStep1">
+      <label class="login-label">Benutzerkürzel (3 Buchstaben)</label>
+      <input class="login-input" type="text" id="userKuerzel" placeholder="z.B. MAX" maxlength="3"
+        autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false"
+        style="text-transform:uppercase;letter-spacing:6px;font-size:24px;text-align:center">
+      <button class="login-btn" onclick="loginStep2()">Weiter →</button>
+    </div>
+    <div id="loginStep2" style="display:none">
+      <div style="text-align:center;margin-bottom:16px">
+        <span style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:4px" id="loginUserShow"></span>
+        <div style="font-size:11px;color:#888;margin-top:2px">PIN eingeben</div>
+      </div>
+      <!-- PIN: echtes Feld liegt über der Punkte-Anzeige, transparent aber klickbar -->
+      <div style="position:relative;margin-bottom:16px">
+        <div id="pinDots"
+          style="display:flex;justify-content:center;align-items:center;gap:10px;
+                 min-height:60px;background:var(--bg);border:2px solid var(--border);
+                 border-radius:10px;padding:16px;pointer-events:none">
+          <span style="color:var(--muted);font-size:14px">PIN eingeben…</span>
+        </div>
+        <input type="text" id="userPin"
+          autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+          style="position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:text;z-index:10;font-size:16px"
+          oninput="onPinInput()" onkeydown="if(event.key==='Enter')loginStep3()">
+      </div>
+      <button class="login-btn" onclick="loginStep3()">Anmelden</button>
+      <button style="width:100%;background:none;border:none;color:#888;font-size:13px;margin-top:8px;cursor:pointer;font-family:'DM Sans',sans-serif" onclick="backToStep1()">← anderer Benutzer</button>
+    </div>
+    <div class="login-err" id="loginErr"></div>
+  </div>
+</div>
+
+<!-- BENUTZER VERWALTUNG MODAL -->
+<div class="overlay" id="userMgmtModal">
+  <div class="modal">
+    <h2>⚙️ Admin</h2>
+    <!-- Tabs -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:16px;grid-template-rows:auto auto">
+      <button id="adminTab1" onclick="switchAdminTab(1)"
+        style="padding:8px;border-radius:var(--r);border:2px solid var(--accent);background:var(--accent);color:#fff;font-weight:700;font-size:13px;cursor:pointer">👥 Benutzer</button>
+      <button id="adminTab3" onclick="switchAdminTab(3)"
+        style="padding:8px;border-radius:var(--r);border:2px solid var(--border);background:var(--surface);color:var(--muted);font-weight:700;font-size:13px;cursor:pointer;grid-column:1/-1">🗓️ Monatsfarben</button>
+      <button id="adminTab2" onclick="switchAdminTab(2)"
+        style="padding:8px;border-radius:var(--r);border:2px solid var(--border);background:var(--surface);color:var(--muted);font-weight:700;font-size:13px;cursor:pointer">🏷️ Hersteller</button>
+    </div>
+
+    <!-- TAB 1: Benutzer -->
+    <div id="adminPanel1">
+    <p style="font-size:12px;color:#888;margin-bottom:14px">Nur Admin-Benutzer können Nutzer anlegen und löschen.</p>
+    <div id="userList" style="margin-bottom:14px"></div>
+    <div style="border-top:1px solid var(--border);padding-top:14px;margin-top:4px">
+      <div style="font-size:12px;font-weight:600;margin-bottom:10px;color:#888;text-transform:uppercase;letter-spacing:1px">Neuer Benutzer</div>
+      <div class="fg"><label>Vollständiger Name</label>
+        <input type="text" class="fi2" id="newUserName" placeholder="z.B. Julian Goßmann"
+          autocomplete="off" autocorrect="off" spellcheck="false"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+        <div class="fg"><label>Kürzel (3 Buchst.)</label>
+          <input type="text" class="fi2" id="newUserK" maxlength="3" placeholder="MAX"
+            style="text-transform:uppercase;letter-spacing:4px;font-size:18px;text-align:center"
+            autocapitalize="characters"></div>
+        <div class="fg"><label>PIN (Zahlen)</label>
+          <input type="text" class="fi2" id="newUserP" maxlength="8" placeholder="1234"
+            autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+            inputmode="text"
+            style="text-align:center;letter-spacing:4px;font-size:18px;-webkit-text-security:disc"></div>
+      </div>
+      <div class="fg"><label>Rolle</label>
+        <select class="fi2" id="newUserRole">
+          <option value="user">Mitarbeiter</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+      <button class="btn btn-accent" style="width:100%;margin-top:4px" onclick="createUser()">＋ Benutzer anlegen</button>
+    </div>
+    </div> <!-- /adminPanel1 -->
+
+    <!-- TAB 3: Monatsfarben -->
+    <div id="adminPanel3" style="display:none">
+      <p style="font-size:12px;color:#888;margin-bottom:12px">Feste Farbe pro Monat – klebt den Aufkleber auf den Kasten.</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px" id="legendGridAdmin"></div>
+    </div>
+
+    <!-- TAB 2: Hersteller -->
+    <div id="adminPanel2" style="display:none">
+      <p style="font-size:12px;color:#888;margin-bottom:12px">Herstellernamen bearbeiten oder löschen.</p>
+      <div id="markenMgmtList" style="margin-bottom:14px"></div>
+      <div style="border-top:1px solid var(--border);padding-top:12px">
+        <div style="font-size:12px;font-weight:600;margin-bottom:8px;color:#888;text-transform:uppercase;letter-spacing:1px">Neuer Hersteller</div>
+        <div style="display:flex;gap:8px">
+          <input type="text" id="newMarkeIn" class="fi2" placeholder="z.B. Coca Cola" autocomplete="off" style="flex:1">
+          <button class="btn btn-accent" onclick="addMarke()">＋</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="mbtns" style="margin-top:14px">
+      <button class="btn btn-surface" style="flex:1" onclick="closeUserMgmt()">Schließen</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- LEGENDE MODAL -->
+<div class="overlay" id="legendModal">
+  <div class="modal">
+    <h2>🗓️ Monatsfarben – MHD Legende</h2>
+    <p style="font-size:12px;color:#888;margin-bottom:14px">Jeder Monat hat eine feste Farbe. Klebt den passenden Aufkleber auf den Kasten beim Einlagern.</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px" id="legendGrid"></div>
+    <div class="mbtns">
+      <button class="btn btn-surface" style="flex:1" onclick="document.getElementById('legendModal').classList.remove('open')">Schließen</button>
+    </div>
+  </div>
+</div>
+
+<!-- AGB MODAL -->
+<div class="overlay" id="agbModal" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal" style="max-width:480px;max-height:85vh;overflow-y:auto">
+    <h2 style="font-family:'Bebas Neue',sans-serif;letter-spacing:2px;font-size:22px">Allgemeine Geschäftsbedingungen</h2>
+    <p style="font-size:11px;color:var(--muted);margin-bottom:12px">Drinkventory · Stand: März 2026</p>
+    <div style="font-size:12px;color:var(--text);line-height:1.7">
+
+      <strong style="font-size:13px">§ 1 Geltungsbereich</strong>
+      <p style="margin:6px 0 12px">Diese AGB gelten für alle Verträge zwischen der BALLONI Hallen und Veranstaltungs GmbH, Ehrenfeldgürtel 88–94, 50823 Köln-Ehrenfeld (nachfolgend „Anbieter") und den Nutzern der Software „Drinkventory" (nachfolgend „Kunde").</p>
+
+      <strong style="font-size:13px">§ 2 Leistungsgegenstand</strong>
+      <p style="margin:6px 0 12px">Der Anbieter stellt dem Kunden die webbasierte Getränkelagerverwaltung „Drinkventory" bereit. Der Funktionsumfang umfasst Artikelverwaltung, Buchungen, MHD-Verwaltung, Barcode-Scanner, Excel-Export und Benutzerverwaltung. Änderungen des Funktionsumfangs bleiben vorbehalten.</p>
+
+      <strong style="font-size:13px">§ 3 Vertragsschluss und Laufzeit</strong>
+      <p style="margin:6px 0 12px">Der Vertrag kommt durch Registrierung und Freischaltung zustande. Mindestlaufzeit: 1 Monat, automatische Verlängerung um jeweils einen Monat. Kündigung: 14 Tage zum Monatsende in Textform.</p>
+
+      <strong style="font-size:13px">§ 4 Nutzungsrechte</strong>
+      <p style="margin:6px 0 12px">Der Kunde erhält ein nicht-exklusives, nicht übertragbares Nutzungsrecht für die Dauer des Vertrags. Zugangsdaten dürfen nicht an Dritte außerhalb des eigenen Betriebs weitergegeben werden.</p>
+
+      <strong style="font-size:13px">§ 5 Vergütung</strong>
+      <p style="margin:6px 0 12px">Die Vergütung richtet sich nach dem gültigen Preisblatt. Preisänderungen werden 30 Tage vorab angekündigt. Zahlung monatlich im Voraus. Bei Zahlungsverzug über 14 Tage kann der Zugang gesperrt werden.</p>
+
+      <strong style="font-size:13px">§ 6 Verfügbarkeit</strong>
+      <p style="margin:6px 0 12px">Der Anbieter strebt 95 % Verfügbarkeit p.a. an. Ausgenommen sind Wartungsarbeiten und Ausfälle bei Drittdiensten (Google Firebase, Vercel).</p>
+
+      <strong style="font-size:13px">§ 7 Datensicherung</strong>
+      <p style="margin:6px 0 12px">Daten werden in Google Firebase (Europa West) gespeichert. Eine Garantie für vollständige Wiederherstellbarkeit besteht nicht. Der Kunde sollte regelmäßig Excel-Exporte als Sicherung erstellen.</p>
+
+      <strong style="font-size:13px">§ 8 Haftung</strong>
+      <p style="margin:6px 0 12px">Unbegrenzte Haftung bei Vorsatz, grober Fahrlässigkeit sowie Schäden an Leben, Körper und Gesundheit. Darüber hinaus ist die Haftung auf vorhersehbare Schäden begrenzt. Keine Haftung für Fehlbuchungen durch Nutzer oder Ausfälle von Drittdiensten.</p>
+
+      <strong style="font-size:13px">§ 9 Datenlöschung nach Vertragsende</strong>
+      <p style="margin:6px 0 12px">Alle Kundendaten werden innerhalb von 30 Tagen nach Vertragsende gelöscht. Der Kunde wird vorab per E-Mail informiert.</p>
+
+      <strong style="font-size:13px">§ 10 Schlussbestimmungen</strong>
+      <p style="margin:6px 0 12px">Es gilt deutsches Recht. Gerichtsstand: Köln. Salvatorische Klausel bei unwirksamen Bestimmungen.</p>
+    </div>
+    <button class="btn btn-surface" style="width:100%;margin-top:16px" onclick="document.getElementById('agbModal').classList.remove('open')">Schließen</button>
+  </div>
+</div>
+
+<!-- DATENSCHUTZ MODAL -->
+<div class="overlay" id="dseModal" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal" style="max-width:480px;max-height:85vh;overflow-y:auto">
+    <h2 style="font-family:'Bebas Neue',sans-serif;letter-spacing:2px;font-size:22px">Datenschutzerklärung</h2>
+    <p style="font-size:11px;color:var(--muted);margin-bottom:12px">Drinkventory · Stand: März 2026</p>
+    <div style="font-size:12px;color:var(--text);line-height:1.7">
+
+      <strong style="font-size:13px">1. Verantwortlicher</strong>
+      <p style="margin:6px 0 12px">BALLONI Hallen und Veranstaltungs GmbH<br>Vertreten durch: Sybille Hartung, Wilhelm Blume<br>Ehrenfeldgürtel 88–94, 50823 Köln-Ehrenfeld<br>Tel: +49 (0) 221-510 910 · <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="d0b9beb6bf90b2b1bcbcbfbeb9feb4b5">[email&#160;protected]</a></p>
+
+      <strong style="font-size:13px">2. Gespeicherte Daten</strong>
+      <p style="margin:6px 0 4px">Nutzerdaten: Benutzerkürzel, PIN, Name, Rolle, Buchungsaktionen mit Zeitstempel.</p>
+      <p style="margin:0 0 12px">Betriebsdaten: Artikelstammdaten, Buchungshistorie, MHD-Einträge, Bestelllisten.</p>
+
+      <strong style="font-size:13px">3. Speicherort & Drittanbieter</strong>
+      <p style="margin:6px 0 12px">Alle Daten werden in der Google Firebase Realtime Database (Serverstandort: Europa West, Belgien) gespeichert. Anbieter: Google Ireland Limited. Es besteht ein Auftragsverarbeitungsvertrag nach Art. 28 DSGVO. Weitere Infos: policies.google.com/privacy</p>
+
+      <strong style="font-size:13px">4. Rechtsgrundlage</strong>
+      <p style="margin:6px 0 12px">Art. 6 Abs. 1 lit. b DSGVO (Vertragserfüllung) und Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse).</p>
+
+      <strong style="font-size:13px">5. Speicherdauer</strong>
+      <p style="margin:6px 0 12px">Daten werden für die Vertragsdauer gespeichert und innerhalb von 30 Tagen nach Vertragsende gelöscht.</p>
+
+      <strong style="font-size:13px">6. Ihre Rechte (DSGVO)</strong>
+      <p style="margin:6px 0 12px">Auskunft · Berichtigung · Löschung · Einschränkung · Datenübertragbarkeit · Widerspruch.<br>Kontakt: <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="94fdfaf2fbd4f6f5f8f8fbfafdbaf0f1">[email&#160;protected]</a><br>Beschwerderecht bei der LDI NRW: www.ldi.nrw.de</p>
+
+      <strong style="font-size:13px">7. Cookies & lokale Speicherung</strong>
+      <p style="margin:6px 0 12px">Kein Tracking, keine Werbe-Cookies. Nur localStorage für Sitzungsdaten und Offline-Zwischenspeicher. Diese Daten verlassen das Gerät nicht.</p>
+
+      <strong style="font-size:13px">8. Datensicherheit</strong>
+      <p style="margin:6px 0 12px">Datenübertragung erfolgt verschlüsselt via HTTPS. Zugang ist durch Kürzel und PIN gesichert.</p>
+    </div>
+    <button class="btn btn-surface" style="width:100%;margin-top:16px" onclick="document.getElementById('dseModal').classList.remove('open')">Schließen</button>
+  </div>
+</div>
+<!-- HEADER -->
+<header>
+  <div style="flex:1"><span style="font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:2px;color:#1a1a1a">Drinkventory</span></div>
+  <div style="flex:1"></div>
+  <div class="hstats">
+    <div><b id="stP">0</b>Artikel</div>
+    <div><b id="stK">0</b>Kästen</div>
+    <div><b id="stF">0</b>Fl.</div>
+  </div>
+  <button id="userBadge" onclick="openUserMgmt()" style="background:#1a1a1a;color:#fff;border:none;border-radius:20px;padding:4px 12px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer;letter-spacing:2px;flex-shrink:0" title="Benutzerverwaltung">–</button>
+  <button id="darkBtn" onclick="toggleDark()" style="background:#f2f1ee;color:#888;border:1px solid #dddbd6;border-radius:20px;padding:4px 10px;font-family:'DM Sans',sans-serif;font-size:14px;cursor:pointer;flex-shrink:0" title="Dark Mode">🌙</button>
+  <button onclick="logoutUser()" style="background:#f2f1ee;color:#888;border:1px solid #dddbd6;border-radius:20px;padding:4px 10px;font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer;flex-shrink:0" title="Abmelden">⏻</button>
+  <div class="sync-dot" id="syncDot" title="Cloud-Status"></div>
+</header>
+
+<!-- SCANNER STRIP -->
+<div id="scanStrip">
+  <div id="foundCard">
+    <div style="display:flex;align-items:center;gap:6px">
+      <div style="flex:1">
+        <div class="fn" id="fName">—</div>
+        <div class="fi">
+          <div id="fKstLabel">Kästen: <strong id="fKst">0</strong></div>
+          <div>Flaschen: <strong id="fFl">0</strong></div>
+        </div>
+      </div>
+      <button onclick="clearFoundCard()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted);padding:4px;line-height:1" title="Auswahl aufheben">✕</button>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:8px;margin-bottom:6px">
+    <input type="text" id="bIn" class="scan-in"
+      placeholder="◉ Scanner-Feld – hier antippen"
+      autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+      inputmode="text"
+      style="flex:1;font-size:16px;padding:14px 12px;border:2px solid var(--accent);border-radius:var(--r);background:var(--surface);color:var(--text)">
+    <button class="btn btn-blue" onclick="openCamera()" title="Kamera-Scanner">📷</button>
+    <button class="btn btn-accent" onclick="doScan()">✓</button>
+  </div>
+
+
+  <div class="qty-grid">
+    <div class="qty-block">
+      <label id="qKLabel">Menge 1</label>
+      <div class="qty-row">
+        <button class="qbtn m" onclick="dq('k',-1)">−</button>
+        <input type="number" id="qK" class="qty-in" value="0" min="0">
+        <button class="qbtn p" onclick="dq('k',1)">+</button>
+      </div>
+    </div>
+    <div class="qty-block">
+      <label id="qFLabel">Menge 2</label>
+      <div class="qty-row">
+        <button class="qbtn m" onclick="dq('f',-1)">−</button>
+        <input type="number" id="qF" class="qty-in" value="0" min="0">
+        <button class="qbtn p" onclick="dq('f',1)">+</button>
+      </div>
+    </div>
+  </div>
+  <!-- MHD Feld – nur bei Eingang relevant -->
+  <div id="mhdRow" style="display:none;margin-bottom:8px;padding:10px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r)">
+    <div style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">📅 MHD dieser Lieferung (optional)</div>
+    <input type="month" id="mhdIn" class="fi2" style="font-size:15px;padding:8px 10px">
+    <div id="mhdHint" style="margin-top:6px;font-size:13px;display:none"></div>
+  </div>
+  <div class="act-row">
+    <button class="btn btn-green" id="eingangsBtn" onclick="handleEingang()">➕ Eingang</button>
+    <button class="btn btn-red"   onclick="hideMhdRow(); applyChange(-1)">➖ Ausgang</button>
+  </div>
+</div>
+
+<!-- MAIN -->
+<main>
+  <!-- SETUP BANNER -->
+  <div id="setupBanner">
+    <h3>⚙️ Firebase einrichten (einmalig)</h3>
+    <p>
+      1. Gehe zu <strong>console.firebase.google.com</strong> → Neues Projekt<br>
+      2. <strong>Realtime Database</strong> aktivieren (Region: europe-west1)<br>
+      3. Regeln auf <code>"read": true, "write": true</code> setzen<br>
+      4. Projekteinstellungen → Web-App → Config kopieren<br>
+      5. Diese HTML-Datei öffnen → oben die Config eintragen → fertig!<br>
+      <br>
+      <em>Danach diese Datei auf Google Drive, OneDrive oder per Link teilen – alle sehen denselben Bestand in Echtzeit.</em>
+    </p>
+  </div>
+
+  <!-- DASHBOARD VIEW -->
+  <div class="view" id="vDashboard">
+    <div class="dash-grid" id="dashGrid"></div>
+    <div class="sec-title" style="margin-top:16px">Mindestbestand Alarm <span class="badge" id="dashAlarmCt">0</span></div>
+    <div id="dashAlarmList"></div>
+    <div class="sec-title" style="margin-top:16px">Top 5 Eingang <span class="badge">letzte 30 Tage</span></div>
+    <div id="dashTop"></div>
+    <div style="text-align:center;margin-top:28px;padding-bottom:8px">
+      <span onclick="document.getElementById('agbModal').classList.add('open')" style="cursor:pointer;color:var(--muted);font-size:11px">AGB</span>
+        <span style="color:var(--muted)">·</span>
+        <span onclick="document.getElementById('dseModal').classList.add('open')" style="cursor:pointer;color:var(--muted);font-size:11px">Datenschutz</span>
+        <span style="color:var(--muted)">·</span>
+        <span onclick="document.getElementById('impressumModal').classList.add('open')"
+        style="font-size:11px;color:var(--muted);cursor:pointer;text-decoration:underline;text-underline-offset:3px">
+        Impressum
+      </span>
+    </div>
+  </div>
+
+  <!-- LAGER VIEW -->
+  <div class="view active" id="vLager">
+    <div class="toolbar">
+      <input type="text" class="search-bar" id="searchIn" placeholder="🔍 Produkt suchen…">
+      <button class="btn btn-surface btn-sm" onclick="exportExcel()">📊 Excel</button>
+      <button class="btn btn-surface btn-sm" id="selModeBtn" onclick="toggleSelMode()">☑️ Auswahl</button>
+    </div>
+    <!-- Auswahl-Aktionsleiste (nur im Auswahl-Modus) -->
+    <div id="selBar" style="display:none;background:var(--accent);color:#fff;border-radius:var(--r);padding:10px 14px;margin-bottom:10px;display:none;align-items:center;gap:10px">
+      <div style="flex:1;font-size:13px;font-weight:700"><span id="selCount">0</span> ausgewählt</div>
+      <button onclick="selAll()" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer;font-weight:600">Alle</button>
+      <button onclick="selNone()" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer;font-weight:600">Keine</button>
+      <button onclick="exportExcelSelected()" style="background:#fff;color:var(--accent);border:none;border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer;font-weight:700">📊 Excel</button>
+      <button onclick="toggleSelMode()" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer">✕</button>
+    </div>
+    <div class="sec-title">Lagerbestand <span class="badge" id="listCt">0 Artikel</span></div>
+    <div id="prodList"></div>
+  </div>
+
+  <!-- HISTORY VIEW -->
+  <div class="view" id="vHistory">
+    <div class="toolbar">
+      <select class="search-bar" id="histFilter" style="width:100%">
+        <option value="">📋 Alle Einträge</option>
+        <option value="p">➕ Eingang</option>
+        <option value="m">➖ Ausgang</option>
+        <option value="inv">🔢 Inventur</option>
+        <option value="best">🛒 Bestellung</option>
+        <option value="edit">✏️ Bearbeitet</option>
+        <option value="del">🗑️ Gelöscht</option>
+      </select>
+    </div>
+    <div class="sec-title">Buchungsverlauf <span class="badge" id="histCt">0</span></div>
+    <div id="histList"></div>
+  </div>
+
+  <!-- INVENTUR VIEW -->
+  <div class="view" id="vInventur">
+    <div class="sec-title">Inventur <span class="badge" id="invCt">0 Artikel</span></div>
+    <p style="font-size:12px;color:#888;margin-bottom:8px">Scanne einen Artikel oder tippe den Namen ins Suchfeld. Bestand ändern → Speichern → nächster Artikel.</p>
+    <input type="text" id="invScanIn" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+      inputmode="text"
+      placeholder="🔍 Scannen oder Artikel suchen…"
+      style="width:100%;padding:13px 14px;border:2px solid var(--accent);border-radius:var(--r);font-size:16px;background:var(--surface);color:var(--text);box-sizing:border-box;margin-bottom:12px">
+    <div id="invList"></div>
+  </div>
+
+  <!-- BESTELLUNG VIEW -->
+  <div class="view" id="vBestellung">
+    <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center">
+      <div style="flex:1;font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1px;color:#888">Bestellung <span class="badge" id="bestCt">0</span></div>
+      <button class="btn btn-accent btn-sm" onclick="addBestPos()">＋ Position</button>
+      <button class="btn btn-green btn-sm" onclick="exportBestellung()">📄 Excel</button>
+    </div>
+    <div id="bestList"></div>
+    <div id="bestEmpty" class="empty"><div class="ei">🛒</div><p>Noch keine Positionen.<br>Tippe auf <strong>＋ Position</strong> um anzufangen.</p></div>
+  </div>
+
+  <!-- ARTIKEL VIEW -->
+  <div class="view" id="vArtikel">
+    <!-- Unsichtbares Feld für Laser-Scanner im Artikel-Reiter -->
+    <input type="text" id="artScanIn" autocomplete="off"
+      autocorrect="off" autocapitalize="off" spellcheck="false"
+      style="position:absolute;opacity:0;pointer-events:none;width:1px;height:1px;font-size:16px"
+      onkeydown="if(event.key==='Enter')doArtScan()">
+    <div class="toolbar" style="flex-wrap:wrap;gap:6px">
+      <input type="text" class="search-bar" id="artSearchIn" placeholder="🔍 Artikel suchen…" oninput="renderArtikel()" style="flex:1;min-width:120px">
+      <select id="artKatFilter" class="search-bar" style="max-width:120px" onchange="renderArtikel()">
+        <option value="">Alle Kategorien</option>
+        <option value="Bier">🍺 Bier</option>
+        <option value="Softdrink">🥤 Softdrink</option>
+        <option value="Wasser">💧 Wasser</option>
+        <option value="Saft">🍊 Saft</option>
+        <option value="Wein">🍷 Wein</option>
+        <option value="Schnaps">🥃 Schnaps</option>
+        <option value="Sekt">🥂 Sekt</option>
+        <option value="Sonstiges">📦 Sonstiges</option>
+      </select>
+      <select id="artMarkeFilter" class="search-bar" style="max-width:120px" onchange="renderArtikel()">
+        <option value="">Alle Marken</option>
+      </select>
+    </div>
+    <div class="sec-title">Artikelverwaltung <span class="badge" id="artCt">0 Artikel</span></div>
+    <div id="artList"></div>
+  </div>
+</main>
+
+<!-- FAB -->
+<button class="fab" onclick="openAdd()">＋</button>
+
+<!-- BOTTOM NAV -->
+<div class="bnav">
+  <button class="nbtn" id="nDashboard" onclick="switchView('Dashboard')"><span class="ni">📊</span>Dashboard</button>
+  <button class="nbtn active" id="nLager"      onclick="switchView('Lager')"><span class="ni">📦</span>Lager</button>
+  <button class="nbtn"        id="nInventur"   onclick="switchView('Inventur')"><span class="ni">🔢</span>Inventur</button>
+  <button class="nbtn"        id="nBestellung" onclick="switchView('Bestellung')"><span class="ni">🛒</span>Bestellung</button>
+  <button class="nbtn"        id="nArtikel"    onclick="switchView('Artikel')"><span class="ni">✏️</span>Artikel</button>
+  <button class="nbtn"        id="nHistory"    onclick="switchView('History')"><span class="ni">📋</span>Verlauf</button>
+</div>
+
+
+<!-- BESTELLUNG POSITION MODAL -->
+<div class="overlay" id="bestModal">
+  <div class="modal">
+    <h2>Position hinzufügen</h2>
+    <div class="fg">
+      <label>Produkt</label>
+      <select class="fi2" id="bestProd">
+        <option value="">-- Produkt wählen --</option>
+      </select>
+    </div>
+    <div class="fg">
+      <label>Oder: Freitext</label>
+      <input type="text" class="fi2" id="bestFreitext" placeholder="z.B. Vodka 0,7L">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div class="fg"><label>Kästen</label><input type="number" class="fi2" id="bestK" value="0" min="0"></div>
+      <div class="fg"><label>Flaschen</label><input type="number" class="fi2" id="bestF" value="0" min="0"></div>
+    </div>
+    <div class="fg"><label>Notiz (optional)</label><input type="text" class="fi2" id="bestNote" placeholder="z.B. dringend"></div>
+    <div class="mbtns">
+      <button class="btn btn-surface" style="flex:1" onclick="closeBestModal()">Abbrechen</button>
+      <button class="btn btn-accent"  style="flex:1" onclick="saveBestPos()">Hinzufügen</button>
+    </div>
+  </div>
+</div>
+
+<!-- INVENTUR MODAL (Einzelprodukt) -->
+<div class="overlay" id="invModal">
+  <div class="modal">
+    <h2 id="invModalTitle">Inventur</h2>
+    <p style="font-size:13px;color:#888;margin-bottom:16px">Tatsächlichen Bestand eingeben:</p>
+    <input type="hidden" id="invModalId">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
+      <div class="fg"><label>Kästen</label><input type="number" class="fi2" id="invModalK" value="0" min="0" style="font-size:22px;font-weight:700;text-align:center"></div>
+      <div class="fg"><label>Flaschen</label><input type="number" class="fi2" id="invModalF" value="0" min="0" style="font-size:22px;font-weight:700;text-align:center"></div>
+    </div>
+    <div class="mbtns">
+      <button class="btn btn-surface" style="flex:1" onclick="closeInvModal()">Abbrechen</button>
+      <button class="btn btn-green"   style="flex:1" onclick="saveInvModal()">✅ Speichern</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD/EDIT MODAL -->
+<div class="overlay" id="addModal">
+  <div class="modal">
+    <h2 id="mTitle">Neues Produkt</h2>
+    <input type="hidden" id="eId">
+    <div class="fg"><label>Produktname *</label><input type="text" id="fNm" class="fi2" placeholder="z.B. Coca Cola 0,33L"></div>
+    <div class="fg" style="position:relative">
+      <label>Marke / Hersteller</label>
+      <input type="text" id="fMarke" class="fi2" placeholder="z.B. Coca Cola, Bitburger…"
+        autocomplete="off" autocorrect="off" spellcheck="false"
+        oninput="filterMarkenDropdown(this.value)"
+        onfocus="showMarkenDropdown(this.value)"
+        onblur="setTimeout(()=>document.getElementById('markenDropdown').style.display='none',200)">
+      <div id="markenDropdown" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:999;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);box-shadow:0 4px 16px rgba(0,0,0,.15);max-height:180px;overflow-y:auto"
+        ontouchstart="event.stopPropagation()"></div>
+    </div>
+    <div class="fg"><label>Barcode (EAN)</label><input type="text" id="fBc" class="fi2" placeholder="z.B. 4000177000036" inputmode="numeric"></div>
+    <div class="fg"><label>Kategorie</label>
+      <select id="fKat" class="fi2">
+        <option value="Bier">🍺 Bier</option><option value="Softdrink">🥤 Softdrink</option>
+        <option value="Wasser">💧 Wasser</option><option value="Saft">🍊 Saft</option>
+        <option value="Wein">🍷 Wein</option><option value="Schnaps">🥃 Schnaps</option>
+        <option value="Sekt">🥂 Sekt</option><option value="Sonstiges">📦 Sonstiges</option>
+      </select>
+    </div>
+    <!-- Einheitenauswahl – nur bei neuem Artikel sichtbar -->
+    <div class="fg" id="einheitRow">
+      <label>Einheit / Gebindeart</label>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px" id="einheitBtns">
+        <button type="button" class="einheit-btn active" data-einheit="kasten" onclick="selectEinheit('kasten')">📦<br><span>Kasten</span></button>
+        <button type="button" class="einheit-btn" data-einheit="fass" onclick="selectEinheit('fass')">🛢️<br><span>Fass</span></button>
+        <button type="button" class="einheit-btn" data-einheit="karton" onclick="selectEinheit('karton')">📦<br><span>Karton</span></button>
+      </div>
+    </div>
+    <div class="fg" id="fPKrow"><label id="fPKlabel">Flaschen pro Kasten</label><input type="number" id="fPK" class="fi2" value="24" min="1"></div>
+    <div class="fg" id="fLiterRow"><label id="fLiterLabel">Liter pro Flasche / Einheit</label>
+      <div style="display:flex;align-items:center;gap:8px">
+        <input type="number" id="fLiter" class="fi2" value="" min="0.01" step="0.01" placeholder="z.B. 0.33" style="flex:1">
+        <span style="font-size:14px;color:var(--muted);white-space:nowrap">Liter</span>
+      </div>
+    </div>
+    <div class="fg"><label id="fK0label">Anfangsbestand Kästen</label><input type="number" id="fK0" class="fi2" value="0" min="0"></div>
+    <div class="fg" id="fF0Row"><label>Anfangsbestand Flaschen (lose)</label><input type="number" id="fF0" class="fi2" value="0" min="0"></div>
+    <div class="fg"><label id="fMnLabel">Mindestbestand Kästen (Alarm)</label><input type="number" id="fMn" class="fi2" value="1" min="0"></div>
+
+    <!-- MHD Liste -->
+    <div class="fg" id="mhdEditRow" style="display:none">
+      <label>📅 MHD-Einträge</label>
+      <div id="mhdEditList" style="margin-bottom:8px;display:flex;flex-wrap:wrap;gap:6px;min-height:24px"></div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="month" id="mhdEditIn" class="fi2" style="flex:1;font-size:14px;padding:7px 10px">
+        <button type="button" onclick="addMhdEdit()" class="btn btn-accent" style="padding:8px 14px;flex-shrink:0">＋ Hinzufügen</button>
+      </div>
+    </div>
+
+    <div class="mbtns">
+      <button class="btn btn-accent" style="flex:1" onclick="saveProduct()">💾 Speichern</button>
+      <button class="btn btn-surface" onclick="closeAdd()">Abbrechen</button>
+    </div>
+  </div>
+</div>
+
+<!-- CAMERA MODAL -->
+<!-- KAMERA MODAL -->
+<div class="overlay" id="camModal" onclick="if(event.target===this)closeCamera()">
+  <div class="modal" style="padding:20px;max-width:340px;text-align:center">
+    <h2 style="font-family:'Bebas Neue',sans-serif;letter-spacing:2px;font-size:22px;margin-bottom:8px">📷 Barcode scannen</h2>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px">Foto machen – Barcode muss scharf und gut beleuchtet sein</p>
+
+    <!-- Vorschau des aufgenommenen Fotos -->
+    <div id="photoPreview" style="display:none;margin-bottom:12px">
+      <img id="photoImg" style="width:100%;border-radius:8px;max-height:200px;object-fit:contain" />
+      <div id="photoStatus" style="margin-top:8px;font-size:13px;color:var(--muted)">Analysiere…</div>
+    </div>
+
+    <!-- Foto aufnehmen Button -->
+    <label id="camLabel" style="display:block;background:var(--accent);color:#fff;border-radius:var(--r);padding:14px;font-size:16px;font-weight:700;cursor:pointer;margin-bottom:10px">
+      📸 Foto aufnehmen
+      <input type="file" id="camInput" accept="image/*" capture="environment" style="display:none" onchange="handlePhoto(this)">
+    </label>
+
+    <button class="btn btn-surface" style="width:100%" onclick="closeCamera()">Abbrechen</button>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- DELETE CONFIRM MODAL -->
+<div class="overlay" id="impressumModal" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal" style="max-width:340px;text-align:center">
+    <h2 style="font-family:'Bebas Neue',sans-serif;letter-spacing:2px;font-size:22px">Impressum</h2>
+    <p style="font-size:13px;color:var(--muted);line-height:1.8;margin:12px 0">
+      <strong style="color:var(--text)">BALLONI Hallen und Veranstaltungs GmbH</strong><br>
+      Ehrenfeldgürtel 88–94<br>
+      50823 Köln-Ehrenfeld<br><br>
+      Tel: +49 (0) 221-510 910<br>
+      <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="0e676068614e6c6f6262616067206a6b">[email&#160;protected]</a>
+    </p>
+    <div style="border-top:1px solid var(--border);margin-top:12px;padding-top:12px">
+      <p style="font-size:11px;color:var(--muted);line-height:1.7">
+        © Copyright by<br>
+        <strong style="color:var(--text)">Julian Goßmann</strong><br>
+        Köln-Riehl
+      </p>
+      <p style="font-size:11px;color:var(--muted);line-height:1.7;margin-top:8px">
+        Diese App wurde entwickelt mit Unterstützung von<br>
+        <strong style="color:var(--text)">Claude</strong> · KI-Assistent von Anthropic
+      </p>
+      <p style="font-size:11px;color:var(--muted);margin-top:10px;letter-spacing:1px">
+        Version 0.78
+      </p>
+    </div>
+    <button class="btn btn-surface" style="width:100%;margin-top:16px" onclick="document.getElementById('impressumModal').classList.remove('open')">Schließen</button>
+  </div>
+</div>
+
+<div class="overlay" id="delModal">
+  <div class="modal">
+    <h2>🗑️ Artikel löschen?</h2>
+    <p>Möchtest du <strong id="delName"></strong> wirklich löschen?<br>Der Bestand und alle Daten dieses Artikels werden entfernt.</p>
+    <div class="mbtns">
+      <button class="btn btn-red" style="flex:1" onclick="confirmDelete()">🗑️ Ja, löschen</button>
+      <button class="btn btn-surface" onclick="closeDelModal()">Abbrechen</button>
+    </div>
+  </div>
+</div>
+
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script type="module">
+
+// ── MHD MONATSFARBEN ──────────────────────────────────────────────────────────
+const MHD_FARBEN = [
+  { monat:'Januar',    farbe:'#3b82f6', name:'Blau',      emoji:'🔵' },
+  { monat:'Februar',   farbe:'#92400e', name:'Braun',     emoji:'🟤' },
+  { monat:'März',      farbe:'#7c3aed', name:'Lila',      emoji:'🟣' },
+  { monat:'April',     farbe:'#f97316', name:'Orange',    emoji:'🟠' },
+  { monat:'Mai',       farbe:'#ec4899', name:'Pink',      emoji:'🌸' },
+  { monat:'Juni',      farbe:'#eab308', name:'Gelb',      emoji:'🟡' },
+  { monat:'Juli',      farbe:'#e5e7eb', name:'Weiß',      emoji:'⚪' },
+  { monat:'August',    farbe:'#ef4444', name:'Rot',       emoji:'🔴' },
+  { monat:'September', farbe:'#22c55e', name:'Grün',      emoji:'🟢' },
+  { monat:'Oktober',   farbe:'#06b6d4', name:'Hellblau',  emoji:'🩵' },
+  { monat:'November',  farbe:'#1f2937', name:'Schwarz',   emoji:'⬛' },
+  { monat:'Dezember',  farbe:'#f9a8d4', name:'Rosa',      emoji:'🩷' },
+];
+function mhdFarbe(monat0) { return MHD_FARBEN[monat0] || MHD_FARBEN[0]; }
+function mhdStatus(dateStr) {
+  if (!dateStr) return null;
+  const d = new Date(dateStr);
+  const diff = (d - Date.now()) / (1000*60*60*24);
+  if (diff < 0)   return { label:'Abgelaufen', color:'#ef4444', bg:'#fdecea' };
+  if (diff < 30)  return { label:'< 30 Tage',  color:'#ef4444', bg:'#fdecea' };
+  if (diff < 90)  return { label:'< 3 Monate', color:'#f97316', bg:'#fff3e0' };
+  return           { label:'OK',               color:'#22c55e', bg:'#f0fdf4' };
+}
+
+// ── DATA ─────────────────────────────────────────────────────────────────────
+let products = {};
+let history  = {};
+let currentId = null;
+
+const { db, ref, set, onValue, push, remove, update, connected } = window.__fb || {};
+
+// ── FIREBASE SYNC ─────────────────────────────────────────────────────────────
+function initFirebase() {
+  if (!connected) {
+    document.getElementById('syncDot').className = 'sync-dot err';
+    document.getElementById('setupBanner').classList.add('show');
+    // Fall back to localStorage
+    products = JSON.parse(localStorage.getItem('lager_p') || '{}');
+    history  = JSON.parse(localStorage.getItem('lager_h') || '{}');
+    render();
+    return;
+  }
+  document.getElementById('syncDot').className = 'sync-dot ok';
+
+  onValue(ref(db, 'products'), snap => {
+    products = snap.val() || {};
+    localStorage.setItem('lager_p', JSON.stringify(products));
+    render();
+  });
+  onValue(ref(db, 'history'), snap => {
+    history = snap.val() || {};
+    renderHistory();
+  });
+}
+
+async function fbSet(path, data) {
+  if (connected) {
+    await set(ref(db, path), data);
+  } else {
+    // localStorage fallback
+    if (path.startsWith('products')) { products = data; localStorage.setItem('lager_p', JSON.stringify(products)); }
+    if (path.startsWith('history'))  { history  = data; localStorage.setItem('lager_h',  JSON.stringify(history)); }
+    render();
+  }
+}
+
+
+// ── OFFLINE QUEUE ─────────────────────────────────────────────────────────────
+let offlineQueue = [];
+try { offlineQueue = JSON.parse(localStorage.getItem('balloni_queue') || '[]'); } catch(e){}
+
+function saveQueue() {
+  localStorage.setItem('balloni_queue', JSON.stringify(offlineQueue));
+}
+
+function queueOp(type, path, data) {
+  offlineQueue.push({ type, path, data, ts: Date.now() });
+  saveQueue();
+}
+
+let _syncInProgress = false;
+
+async function syncOfflineQueue() {
+  if (!offlineQueue.length || !connected) return;
+  _syncInProgress = true;
+  const q = [...offlineQueue];
+  offlineQueue = [];
+  saveQueue();
+  let synced = 0;
+  for (const op of q) {
+    try {
+      if (op.type === 'push')   await push(ref(db, op.path), op.data);
+      if (op.type === 'update') await update(ref(db, op.path), op.data);
+      if (op.type === 'set')    await set(ref(db, op.path), op.data);
+      synced++;
+    } catch(e) {
+      offlineQueue.push(op);
+    }
+  }
+  saveQueue();
+  _syncInProgress = false;
+  if (synced > 0) toast(`☁️ ${synced} Buchung${synced>1?'en':''} synchronisiert`, 's');
+}
+
+async function fbPush(path, data) {
+  if (connected && navigator.onLine) {
+    await push(ref(db, path), data);
+  } else {
+    // Offline: lokal speichern + in Queue
+    const key = Date.now().toString();
+    if (path === 'history') { history[key] = data; localStorage.setItem('lager_h', JSON.stringify(history)); renderHistory(); }
+    queueOp('push', path, data);
+  }
+}
+
+async function fbUpdate(path, data) {
+  if (connected && navigator.onLine) {
+    await update(ref(db, path), data);
+  } else {
+    // Offline: lokal speichern + in Queue
+    if (path.startsWith('products/')) {
+      const id = path.split('/')[1];
+      products[id] = { ...products[id], ...data };
+      localStorage.setItem('lager_p', JSON.stringify(products));
+      render();
+    }
+    queueOp('update', path, data);
+  }
+}
+
+// ── RENDER ────────────────────────────────────────────────────────────────────
+const catIcons = {Bier:'🍺',Softdrink:'🥤',Wasser:'💧',Saft:'🍊',Wein:'🍷',Schnaps:'🥃',Sekt:'🥂',Sonstiges:'📦'};
+
+// Einheit-Labels Helper
+function einheitLabel(p, short=false) {
+  if (p.einheit==='fass')   return short ? 'Fass' : 'Fässer';
+  if (p.einheit==='karton') return short ? 'Krt'  : 'Kartons';
+  return short ? 'Kst' : 'Kästen';
+}
+function einheitIcon(p) {
+  if (p.einheit==='fass')   return '🛢️';
+  if (p.einheit==='karton') return '📦';
+  return '📦';
+}
+
+
+function render() {
+  updateStats();
+  renderList();
+  renderArtikel();
+  checkAlarms();
+  // refresh found card
+  if (currentId && products[currentId]) {
+    const p = products[currentId];
+    document.getElementById('fKst').textContent = p.kaesten;
+    document.getElementById('fFl').textContent  = p.flaschen;
+  }
+}
+
+function updateStats() {
+  const arr = Object.values(products);
+  document.getElementById('stP').textContent = arr.length;
+  document.getElementById('stK').textContent = arr.reduce((s,p)=>s+(p.kaesten||0),0);
+  document.getElementById('stF').textContent = arr.reduce((s,p)=>s+(p.flaschen||0),0);
+}
+
+function renderList() {
+  const q = (document.getElementById('searchIn').value||'').toLowerCase();
+  const arr = Object.entries(products)
+    .map(([id,p])=>({id,...p}))
+    .filter(p => p.name?.toLowerCase().includes(q) || (p.barcode||'').includes(q) || (p.kategorie||'').toLowerCase().includes(q) || (p.marke||'').toLowerCase().includes(q));
+
+  document.getElementById('listCt').textContent = arr.length + ' Artikel';
+  const el = document.getElementById('prodList');
+  if (!arr.length) {
+    el.innerHTML = `<div class="empty"><div class="ei">📦</div><p>Noch keine Produkte.<br>Tippe auf <strong>＋</strong> um eines anzulegen.</p></div>`;
+    return;
+  }
+  el.innerHTML = arr.map(p => {
+    const low = p.kaesten < (p.minBestand||0);
+    const isSel = selectedIds.has(p.id);
+    const selClass = selMode ? 'sel-mode' + (isSel?' selected':'') : '';
+    const checkIcon = selMode ? `<div style="font-size:22px;flex-shrink:0">${isSel?'✅':'⬜'}</div>` : '';
+    return `<div class="pcard ${low?'low':''} ${selClass}" onclick="${selMode?`toggleSel('${p.id}')`:` selProd('${p.id}')`}">
+      ${checkIcon}
+      <div class="picon">${catIcons[p.kategorie]||'📦'}</div>
+      <div class="pdet">
+        <div class="pname">${p.name}${p.liter ? ' <span style="font-size:11px;color:var(--muted);font-weight:400">('+(p.liter%1===0?p.liter+'.0':p.liter)+' Liter)</span>' : ''}</div>
+        <div class="pbar">${p.marke?'🏷️ '+p.marke+' · ':''}${p.barcode||'kein Barcode'}</div>
+        <span class="ptag">${p.kategorie||'Sonstiges'}</span>
+      </div>
+      <div class="pstock">
+        <div class="sk">${p.kaesten} <span style="font-size:12px;color:var(--muted)">${p.einheit==='fass'?'Fass':p.einheit==='karton'?'Krt':'Kst'}</span></div>
+        <div class="sf">${p.flaschen} lose</div>
+        ${low?'<div class="slow">⚠️ Nachbestellen</div>':''}
+        ${(()=>{
+          const list = p.mhdList||[];
+          if(!list.length) return '';
+          const next = list.sort()[0];
+          const st = mhdStatus(next);
+          const [y,m2] = next.slice(0,7).split('-').map(Number);
+          const f = mhdFarbe(m2-1);
+          return `<div style="font-size:11px;margin-top:3px;display:flex;align-items:center;gap:4px">
+            <span style="width:9px;height:9px;border-radius:50%;background:${f.farbe};display:inline-block;border:1px solid rgba(0,0,0,.15)"></span>
+            <span style="color:${st?.color||'var(--muted)'}">MHD ${f.monat.slice(0,3)} ${y}</span>
+          </div>`;
+        })()}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderHistory() {
+  const filter  = document.getElementById('histFilter')?.value||'';
+  const isAdmin = currentUser?.role === 'admin' || currentUser?.kuerzel === 'ADM';
+  let arr = Object.entries(history).sort((a,b)=>new Date(b[1].ts)-new Date(a[1].ts));
+  if (filter) arr = arr.filter(([,h])=>h.dir===filter);
+  arr = arr.slice(0,100);
+  document.getElementById('histCt').textContent = arr.length;
+  const el = document.getElementById('histList');
+  if (!arr.length) { el.innerHTML = `<div class="empty"><div class="ei">📋</div><p>Keine Einträge gefunden.</p></div>`; return; }
+  const icons  = {p:'➕',m:'➖',inv:'🔢',best:'🛒',edit:'✏️',del:'🗑️'};
+  const labels = {p:'Eingang',m:'Ausgang',inv:'Inventur',best:'Bestellung',edit:'Bearbeitet',del:'Gelöscht'};
+  el.innerHTML = arr.map(([key,h]) => {
+    const d = new Date(h.ts);
+    const ds = d.toLocaleDateString('de-DE')+' '+d.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
+    // Einheit des Produkts ermitteln
+    const prod = Object.values(products).find(p=>p.name===h.pn);
+    const einh = prod?.einheit==='fass' ? 'Fass' : prod?.einheit==='karton' ? 'Krt' : 'Kst';
+    const parts=[];
+    if(h.dK) parts.push(`${h.dK>0?'+':''}${h.dK} ${einh}`);
+    if(h.dF) parts.push(`${h.dF>0?'+':''}${h.dF} Fl`);
+    const dir      = h.dir||'m';
+    const dirClass = ['p','m','best'].includes(dir)?dir:'m';
+    const icon     = icons[dir]||'📋';
+    const label    = labels[dir]||dir;
+    const userBadge = h.user?`<span style="background:#1a1a1a;color:#fff;border-radius:10px;padding:1px 7px;font-size:10px;font-weight:700;letter-spacing:1px;margin-left:4px">${h.user}</span>`:'';
+    const subInfo  = ['best','edit','del'].includes(dir)?'':` · ${h.nK??'–'} ${einh}, ${h.nF??'–'} Fl`;
+    const delBtn   = isAdmin ? `<button onclick="deleteHistEntry('${key}')" style="background:none;border:none;color:#bbb;font-size:18px;cursor:pointer;padding:4px 8px;flex-shrink:0;line-height:1" title="Eintrag löschen">🗑️</button>` : '';
+    return `<div class="hitem" style="align-items:center">
+      <div class="hbadge ${dirClass}">${icon}</div>
+      <div class="hdet" style="flex:1"><div class="hn">${h.pn} ${userBadge}</div><div class="hm">${ds}${subInfo}</div></div>
+      <div class="hch ${dirClass}" style="margin-right:4px">${parts.length?parts.join(', '):label}</div>
+      ${delBtn}
+    </div>`;
+  }).join('');
+
+  // Kein el.onclick mehr nötig – deleteHistEntry ist global
+}
+
+window.showDashPopup = function(type) {
+  const prods = Object.values(products);
+  let title = '', items = [];
+
+  if (type === 'alle') {
+    title = '📦 Alle Artikel';
+    items = prods.sort((a,b)=>a.name.localeCompare(b.name))
+      .map(p=>`<div class="dash-top-item">
+        <span style="font-size:18px">${catIcons[p.kategorie]||'📦'}</span>
+        <div style="flex:1;font-size:13px;font-weight:600">${p.name}</div>
+        <div style="font-size:12px;color:var(--muted)">${einheitIcon(p)}${p.kaesten} ${einheitLabel(p,true)} · ${p.flaschen} Fl</div>
+      </div>`);
+  } else if (type === 'kaesten') {
+    title = '📦 Kästen nach Bestand';
+    items = prods.filter(p=>p.kaesten>0).sort((a,b)=>b.kaesten-a.kaesten)
+      .map(p=>`<div class="dash-top-item">
+        <span style="font-size:18px">${catIcons[p.kategorie]||'📦'}</span>
+        <div style="flex:1;font-size:13px;font-weight:600">${p.name}</div>
+        <div style="font-size:13px;font-weight:700;color:var(--text)">${einheitIcon(p)}${p.kaesten} ${einheitLabel(p,true)}</div>
+      </div>`);
+  } else if (type === 'flaschen') {
+    title = '🍾 Artikel mit losen Flaschen';
+    items = prods.filter(p=>p.flaschen>0).sort((a,b)=>b.flaschen-a.flaschen)
+      .map(p=>`<div class="dash-top-item">
+        <span style="font-size:18px">${catIcons[p.kategorie]||'📦'}</span>
+        <div style="flex:1;font-size:13px;font-weight:600">${p.name}</div>
+        <div style="font-size:13px;font-weight:700;color:var(--blue)">${p.flaschen} Fl</div>
+      </div>`);
+  } else if (type === 'mhd') {
+    title = '📅 MHD Alarm';
+    items = prods.filter(p=>(p.mhdList||[]).length>0)
+      .sort((a,b)=>{
+        const aMin = Math.min(...(a.mhdList||[]).map(d=>new Date(d)));
+        const bMin = Math.min(...(b.mhdList||[]).map(d=>new Date(d)));
+        return aMin-bMin;
+      })
+      .map(p => {
+        const dates = (p.mhdList||[]).map(d=>{
+          const st = mhdStatus(d);
+          const [y,m] = d.slice(0,7).split('-').map(Number);
+          const f = mhdFarbe(m-1);
+          return `<span style="display:inline-flex;align-items:center;gap:4px;background:${st?.bg||'#f0fdf4'};color:${st?.color||'#22c55e'};border-radius:12px;padding:2px 8px;font-size:11px;font-weight:600;margin:2px">
+            <span style="width:10px;height:10px;border-radius:50%;background:${f.farbe};display:inline-block;border:1px solid rgba(0,0,0,.15)"></span>
+            ${f.monat.slice(0,3)} ${y} &nbsp;<button onclick="removeMhd('${p.id||Object.keys(products).find(k=>products[k]===p)}','${d}')" style="background:none;border:none;cursor:pointer;color:#999;font-size:11px;padding:0;line-height:1">✕</button>
+          </span>`;
+        }).join('');
+        return { name:p.name, sub: dates };
+      });
+  } else if (type === 'fass') {
+    title = '🛢️ Fässer';
+    items = prods.filter(p=>p.einheit==='fass').sort((a,b)=>b.kaesten-a.kaesten)
+      .map(p=>`<div class="dash-top-item">
+        <span style="font-size:18px">${catIcons[p.kategorie]||'📦'}</span>
+        <div style="flex:1;font-size:13px;font-weight:600">${p.name}</div>
+        <div style="font-size:13px;font-weight:700">🛢️ ${p.kaesten}</div>
+      </div>`);
+  } else if (type === 'karton') {
+    title = '📦 Kartons';
+    items = prods.filter(p=>p.einheit==='karton').sort((a,b)=>b.kaesten-a.kaesten)
+      .map(p=>`<div class="dash-top-item">
+        <span style="font-size:18px">${catIcons[p.kategorie]||'📦'}</span>
+        <div style="flex:1;font-size:13px;font-weight:600">${p.name}</div>
+        <div style="font-size:13px;font-weight:700">📦 ${p.kaesten}</div>
+      </div>`);
+  } else if (type === 'alarm') {
+    title = '⚠️ Mindestbestand unterschritten';
+    items = prods.filter(p=>p.kaesten<(p.minBestand||0)).sort((a,b)=>a.kaesten-b.kaesten)
+      .map(p=>`<div class="dash-top-item" style="border-left:3px solid var(--red)">
+        <span style="font-size:18px">${catIcons[p.kategorie]||'📦'}</span>
+        <div style="flex:1;font-size:13px;font-weight:600">${p.name}</div>
+        <div style="font-size:12px;color:var(--red)">${einheitIcon(p)}${p.kaesten}/${p.minBestand} ${einheitLabel(p,true)}</div>
+      </div>`);
+  }
+
+  document.getElementById('dashPopupTitle').textContent = title;
+  document.getElementById('dashPopupList').innerHTML = items.length
+    ? `<div style="max-height:55vh;overflow-y:auto">${items.join('')}</div>`
+    : '<div class="empty"><div class="ei">✅</div><p>Keine Einträge</p></div>';
+  document.getElementById('dashPopup').classList.add('open');
+};
+
+window.deleteHistEntry = async function(key) {
+  if (!confirm('Diesen Verlaufseintrag wirklich löschen?')) return;
+  if (connected) {
+    await remove(ref(db, `history/${key}`));
+  } else {
+    delete history[key];
+    localStorage.setItem('lager_h', JSON.stringify(history));
+    renderHistory();
+  }
+  toast('🗑️ Eintrag gelöscht', 'e');
+};
+
+window.renderArtikel = function() {
+  const q     = (document.getElementById('artSearchIn').value||'').toLowerCase();
+  const kat   = document.getElementById('artKatFilter').value;
+  const marke = document.getElementById('artMarkeFilter').value;
+
+  // Marken-Dropdown dynamisch befüllen
+  const allMarken = [...new Set(Object.values(products).map(p=>p.marke).filter(Boolean))].sort();
+  const markeEl = document.getElementById('artMarkeFilter');
+  const curMarke = markeEl.value;
+  markeEl.innerHTML = '<option value="">Alle Marken</option>' +
+    allMarken.map(m=>`<option value="${m}"${m===curMarke?' selected':''}>${m}</option>`).join('');
+
+  const arr = Object.entries(products)
+    .map(([id,p])=>({id,...p}))
+    .filter(p =>
+      (!q || p.name?.toLowerCase().includes(q) || (p.barcode||'').includes(q) || (p.marke||'').toLowerCase().includes(q)) &&
+      (!kat   || p.kategorie === kat) &&
+      (!marke || p.marke     === marke)
+    )
+    .sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+
+  document.getElementById('artCt').textContent = arr.length + ' Artikel';
+  const el = document.getElementById('artList');
+  if (!arr.length) {
+    el.innerHTML = `<div class="empty"><div class="ei">✏️</div><p>Keine Artikel gefunden.<br>Tippe auf <strong>＋</strong> um einen anzulegen.</p></div>`;
+    return;
+  }
+  el.innerHTML = arr.map(p => {
+    const icon = catIcons[p.kategorie]||'📦';
+    const low  = p.kaesten < (p.minBestand||0);
+    const total = (p.kaesten||0)*(p.proKasten||24)+(p.flaschen||0);
+    return `<div class="acard">
+      <div class="acard-top">
+        <div class="acard-icon">${icon}</div>
+        <div class="acard-info">
+          <div class="acard-name">${p.name}${low?'<span class="low-badge">⚠️ Niedrig</span>':''}</div>
+          <div class="acard-bar">${p.marke ? '🏷️ '+p.marke+' · ' : ''}${p.barcode||'kein Barcode'}</div>
+          <span class="acard-tag">${p.kategorie||'Sonstiges'}${p.einheit!=='fass' ? ' · '+(p.proKasten||24)+' Fl/'+einheitLabel(p,true) : ''}</span>
+        </div>
+      </div>
+      <div class="acard-stats">
+        <div class="astat"><div class="astat-val">${einheitIcon(p)} ${p.kaesten||0}</div><div class="astat-lbl">${einheitLabel(p)}</div></div>
+        <div class="astat"><div class="astat-val">${p.flaschen||0}</div><div class="astat-lbl">${p.einheit==='fass'?'Liter':'lose Fl.'}</div></div>
+        <div class="astat"><div class="astat-val">${total}</div><div class="astat-lbl">${p.einheit==='fass'?'L. gesamt':'Fl. gesamt'}</div></div>
+      </div>
+      <div class="acard-btns">
+        <button class="btn btn-accent btn-sm" style="flex:1" onclick="openAdd('${p.id}')">✏️ Bearbeiten</button>
+        <button class="btn btn-surface btn-sm" onclick="selProdAndGo('${p.id}')">📦 Buchen</button>
+        <button class="btn btn-sm" style="background:#2a1414;color:var(--red)" onclick="openDelModal('${p.id}')">🗑️</button>
+      </div>
+    </div>`;
+  }).join('');
+};
+
+window.selProdAndGo = function(id) {
+  selProd(id);
+  switchView('Lager');
+};
+
+// ── DELETE ────────────────────────────────────────────────────────────────────
+let deleteId = null;
+
+window.openDelModal = function(id) {
+  deleteId = id;
+  document.getElementById('delName').textContent = products[id]?.name || 'diesen Artikel';
+  document.getElementById('delModal').classList.add('open');
+};
+
+window.closeDelModal = function() {
+  document.getElementById('delModal').classList.remove('open');
+  deleteId = null;
+};
+
+window.confirmDelete = async function() {
+  if (!deleteId) return;
+  const name = products[deleteId]?.name || '';
+  if (connected) {
+    await remove(ref(db, `products/${deleteId}`));
+  } else {
+    delete products[deleteId];
+    localStorage.setItem('lager_p', JSON.stringify(products));
+    render();
+    renderArtikel();
+  }
+  if (currentId === deleteId) {
+    currentId = null;
+    document.getElementById('foundCard').classList.remove('show');
+  }
+  await fbPush('history', { pn: name, dir:'del', nK:0, nF:0, dK:0, dF:0, ts:new Date().toISOString(), user:currentUser?.kuerzel||'?' });
+  closeDelModal();
+  toast(`🗑️ ${name} gelöscht`, 'e');
+};
+
+// ── SCANNER ───────────────────────────────────────────────────────────────────
+const bIn = document.getElementById('bIn');
+bIn.addEventListener('keydown', e => { if(e.key==='Enter'){ clearTimeout(bInTimer); doScan(); } });
+let bInTimer = null;
+bIn.addEventListener('input', () => {
+  clearTimeout(bInTimer);
+  const val = bIn.value.trim();
+  if (val.length < 4) return;
+  // Auto-auslösen NUR wenn Barcode in der DB bekannt
+  // Unbekannt → immer warten auf Enter oder ✓ Button
+  const known = Object.values(products).some(p => p.barcode === val);
+  if (known) {
+    bInTimer = setTimeout(() => { if (bIn.value.trim()) doScan(); }, 300);
+  }
+});
+bIn.addEventListener('focus', () => { clearTimeout(bInTimer); });
+document.addEventListener('click', e => {
+  if (!document.getElementById('loginScreen').classList.contains('hidden')) return;
+  if (e.target.closest('button, a, input, textarea, select, label, .overlay, #loginScreen, .bnav, .fab, [data-histkey], [data-action]')) return;
+  const activView = document.querySelector('.view.active');
+  if (!activView) return;
+  // Nur wenn kein Input bereits fokussiert ist
+  const focused = document.activeElement;
+  if (focused && (focused.tagName === 'INPUT' || focused.tagName === 'TEXTAREA' || focused.tagName === 'SELECT')) return;
+  // Kein auto-focus – Android würde sonst Tastatur öffnen
+});
+
+window.doArtScan = function() {
+  const el = document.getElementById('artScanIn');
+  const code = el.value.trim();
+  el.value = '';
+  if (!code) return;
+  const entry = Object.entries(products).find(([,p]) => p.barcode === code);
+  if (entry) {
+    openAdd(entry[0]);
+    toast('✏️ ' + entry[1].name + ' – Bearbeiten', 'i');
+  } else {
+    openAdd(null, code);
+    toast('Barcode unbekannt – neues Produkt anlegen', 'e');
+  }
+};
+
+// invScanIn – filtert Liste per Scan oder Texteingabe
+let invScanTimer = null;
+document.addEventListener('DOMContentLoaded', () => {
+  const invEl = document.getElementById('invScanIn');
+  if (!invEl) return;
+  invEl.addEventListener('input', () => {
+    clearTimeout(invScanTimer);
+    const val = invEl.value.trim();
+    if (!val) { renderInventur(); return; }
+    // Sofort filtern bei Texteingabe (Name-Suche)
+    filterInventur(val);
+    // Exakte Barcode-Übereinstimmung → sofort auf diesen Artikel filtern
+    if (val.length >= 4) {
+      const byBarcode = Object.entries(products).find(([,p])=>p.barcode===val);
+      if (byBarcode) {
+        filterInventur(val, byBarcode[0]);
+      }
+    }
+  });
+  invEl.addEventListener('keydown', e => { if(e.key==='Enter'){ clearTimeout(invScanTimer); doInvScan(); } });
+});
+
+window.doInvScan = function() {
+  const el = document.getElementById('invScanIn');
+  const val = el.value.trim();
+  if (!val) return;
+  const byBarcode = Object.entries(products).find(([,p])=>p.barcode===val);
+  if (byBarcode) {
+    filterInventur(val, byBarcode[0]);
+  } else {
+    filterInventur(val);
+  }
+};
+
+window.filterInventur = function(q, exactId) {
+  const ql = q.toLowerCase();
+  const arr = Object.entries(products).map(([id,p])=>({id,...p}))
+    .filter(p => exactId ? p.id===exactId : 
+      p.name?.toLowerCase().includes(ql) || (p.barcode||'').includes(q) || (p.marke||'').toLowerCase().includes(ql))
+    .sort((a,b)=>a.name.localeCompare(b.name));
+  document.getElementById('invCt').textContent = arr.length + ' Artikel';
+  const el = document.getElementById('invList');
+  if (!arr.length) { el.innerHTML = '<div class="empty"><div class="ei">🔍</div><p>Kein Artikel gefunden.</p></div>'; return; }
+  el.innerHTML = arr.map(p => `
+    <div class="inv-card" id="inv_${p.id}">
+      <div class="inv-top">
+        <div style="font-size:22px">${catIcons[p.kategorie]||'📦'}</div>
+        <div style="flex:1"><div class="inv-name">${p.name}${p.liter ? ' <span style="font-size:11px;color:var(--muted);font-weight:400">('+(p.liter%1===0?p.liter+'.0':p.liter)+' Liter)</span>' : ''}</div><div class="inv-bar">${p.marke?'🏷️ '+p.marke+' · ':''}${p.barcode||'–'}</div></div>
+        <div style="text-align:right;font-size:12px;color:#888">Ist: <b>${einheitIcon(p)}${p.kaesten} / ${p.flaschen}Fl</b></div>
+      </div>
+      <div class="inv-row">
+        <div class="inv-field"><label>${einheitLabel(p)}</label><input class="inv-in" type="number" id="ik_${p.id}" value="${p.kaesten}" min="0"></div>
+        <div class="inv-field"><label>Flaschen</label><input class="inv-in" type="number" id="if_${p.id}" value="${p.flaschen}" min="0"></div>
+      </div>
+      <button class="inv-save" id="isv_${p.id}" onclick="saveInvAndClear('${p.id}')">💾 Bestand speichern</button>
+    </div>`).join('');
+};
+
+window.doScan = function() {
+  const code = bIn.value.trim();
+  if (!code) return;
+  const entry = Object.entries(products).find(([,p])=>p.barcode===code);
+  if (entry) {
+    selProd(entry[0]);
+  } else {
+    currentId = null;
+    document.getElementById('foundCard').classList.remove('show');
+    openAdd(null, code);
+    toast('Barcode unbekannt – neues Produkt anlegen', 'e');
+  }
+  bIn.value = '';
+  // Feld bleibt fokussiert für nächsten Scan
+  setTimeout(() => bIn.focus(), 100);
+};
+
+window.dq = function(f, d) {
+  const el = document.getElementById(f==='k'?'qK':'qF');
+  el.value = Math.max(0,(parseInt(el.value)||0)+d);
+};
+
+window.handleEingang = function() {
+  const row = document.getElementById('mhdRow');
+  const btn = document.getElementById('eingangsBtn');
+  if (row.style.display === 'none' || row.style.display === '') {
+    // Erster Klick: MHD-Feld einblenden
+    row.style.display = 'block';
+    updateMhdHint();
+    btn.textContent = '✅ Jetzt einbuchen';
+    btn.onclick = function() { applyChange(1); };
+  }
+};
+window.hideMhdRow = function() {
+  document.getElementById('mhdRow').style.display = 'none';
+  const btn = document.getElementById('eingangsBtn');
+  btn.textContent = '➕ Eingang';
+  btn.onclick = handleEingang;
+};
+window.updateMhdHint = function() {
+  const val = document.getElementById('mhdIn').value;
+  const hint = document.getElementById('mhdHint');
+  if (!val) { hint.style.display='none'; return; }
+  const [y,m] = val.split('-').map(Number);
+  const f = mhdFarbe(m-1);
+  const st = mhdStatus(new Date(y,m-1,28).toISOString());
+  hint.style.display = 'block';
+  hint.innerHTML = `Sticker-Farbe: <span style="display:inline-block;background:${f.farbe};color:${['⚪','🩷'].includes(f.emoji)?'#333':'#fff'};border-radius:20px;padding:2px 12px;font-weight:700;font-size:13px;border:1px solid rgba(0,0,0,.1)">${f.emoji} ${f.name}</span>&nbsp;<span style="font-size:12px;color:${st?.color}">${st?.label||''}</span>`;
+};
+document.addEventListener('DOMContentLoaded', () => {
+  const mi = document.getElementById('mhdIn');
+  if (mi) mi.addEventListener('change', updateMhdHint);
+});
+
+window.applyChange = async function(dir) {
+  const k = parseInt(document.getElementById('qK').value)||0;
+  const f = parseInt(document.getElementById('qF').value)||0;
+  if (!k && !f) { toast('Bitte Menge eingeben','e'); return; }
+  if (!currentId) { toast('Bitte zuerst Produkt scannen/auswählen','e'); return; }
+  const p = products[currentId];
+  if (!p) return;
+
+  const nK = Math.max(0, p.kaesten + k*dir);
+  const nF = Math.max(0, p.flaschen + f*dir);
+
+  // MHD bei Eingang speichern
+  let mhdUpdate = {};
+  if (dir > 0) {
+    const mhdVal = document.getElementById('mhdIn').value;
+    if (mhdVal) {
+      const [y,m] = mhdVal.split('-').map(Number);
+      const mhdDate = new Date(y,m-1,28).toISOString().slice(0,10);
+      // MHD-Liste: bestehende + neues Datum (keine Duplikate)
+      const existing = p.mhdList || [];
+      if (!existing.includes(mhdDate)) existing.push(mhdDate);
+      existing.sort();
+      mhdUpdate = { mhdList: existing };
+    }
+  }
+
+  await fbUpdate(`products/${currentId}`, { kaesten: nK, flaschen: nF, ...mhdUpdate });
+  await fbPush('history', { pn:p.name, dK:k*dir, dF:f*dir, nK, nF, dir:dir>0?'p':'m', ts:new Date().toISOString(), user:currentUser?.kuerzel||'?' });
+
+  const parts=[];
+  if(k) parts.push(`${k} Kasten`);
+  if(f) parts.push(`${f} Fl.`);
+  toast(`${dir>0?'➕':'➖'} ${p.name}: ${parts.join(' + ')}`, dir>0?'s':'e');
+
+  document.getElementById('qK').value = 0;
+  document.getElementById('qF').value = 0;
+  document.getElementById('mhdIn').value = '';
+  document.getElementById('mhdHint').style.display = 'none';
+  document.getElementById('mhdRow').style.display = 'none';
+  const btn = document.getElementById('eingangsBtn');
+  if (btn) { btn.textContent = '➕ Eingang'; btn.onclick = handleEingang; }
+
+  if (nK < (p.minBestand||0)) setTimeout(()=>toast(`⚠️ ${p.name}: Mindestbestand!`,'e'),1400);
+};
+
+window.selectEinheit = function(e) {
+  document.querySelectorAll('.einheit-btn').forEach(b => b.classList.toggle('active', b.dataset.einheit===e));
+  const isFass   = e === 'fass';
+  const isKasten = e === 'kasten';
+  const isKarton = e === 'karton';
+
+  // Labels
+  document.getElementById('fK0label').textContent  = isFass ? 'Anfangsbestand Fässer' : isKarton ? 'Anfangsbestand Kartons' : 'Anfangsbestand Kästen';
+  document.getElementById('fMnLabel').textContent  = isFass ? 'Mindestbestand Fässer (Alarm)' : isKarton ? 'Mindestbestand Kartons (Alarm)' : 'Mindestbestand Kästen (Alarm)';
+
+  // Flaschen pro Kasten/Karton – nur bei Kasten + Karton
+  document.getElementById('fPKrow').style.display  = isFass ? 'none' : '';
+  document.getElementById('fPKlabel').textContent  = isKarton ? 'Flaschen pro Karton' : 'Flaschen pro Kasten';
+
+  // Lose Flaschen – nur bei Kasten sinnvoll
+  document.getElementById('fF0Row').style.display  = isKasten ? '' : 'none';
+
+  // Liter – immer anzeigen, Label je nach Einheit
+  document.getElementById('fLiterRow').style.display = '';
+  document.getElementById('fLiterLabel').textContent = isFass ? 'Liter Inhalt (Fass gesamt)' : isKarton ? 'Liter pro Flasche' : 'Liter pro Flasche';
+};
+
+// ── AUSWAHL-MODUS ─────────────────────────────────────────────────────────────
+let selMode = false;
+let selectedIds = new Set();
+
+window.toggleSelMode = function() {
+  selMode = !selMode;
+  selectedIds.clear();
+  const bar = document.getElementById('selBar');
+  bar.style.display = selMode ? 'flex' : 'none';
+  document.getElementById('selModeBtn').style.background = selMode ? 'var(--accent)' : '';
+  document.getElementById('selModeBtn').style.color = selMode ? '#fff' : '';
+  renderList();
+};
+
+window.toggleSel = function(id) {
+  if (selectedIds.has(id)) selectedIds.delete(id);
+  else selectedIds.add(id);
+  document.getElementById('selCount').textContent = selectedIds.size;
+  renderList();
+};
+
+window.selAll = function() {
+  Object.keys(products).forEach(id => selectedIds.add(id));
+  document.getElementById('selCount').textContent = selectedIds.size;
+  renderList();
+};
+
+window.selNone = function() {
+  selectedIds.clear();
+  document.getElementById('selCount').textContent = 0;
+  renderList();
+};
+
+window.exportExcelSelected = async function() {
+  if (!selectedIds.size) { toast('Keine Artikel ausgewählt','e'); return; }
+  const now = new Date();
+  const ds  = now.toLocaleDateString('de-DE')+' '+now.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
+  const einheitOrder = { kasten:0, karton:1, fass:2 };
+  const sorted = [...selectedIds]
+    .map(id => products[id]).filter(Boolean)
+    .sort((a,b) => {
+      const oa = einheitOrder[a.einheit||'kasten']??0;
+      const ob = einheitOrder[b.einheit||'kasten']??0;
+      if (oa!==ob) return oa-ob;
+      return (a.name||'').localeCompare(b.name||'');
+    });
+
+  const rows = [
+    ['Getränke Lagerbestand (Auswahl) — Stand: '+ds],
+    [],
+    ['Produkt','Firma','Kästen','Fässer','Kartons','Lose Flaschen','Fl/Einheit','Liter/Fl.','Gesamt Fl.']
+  ];
+  sorted.forEach(p => {
+    const einheit = p.einheit||'kasten';
+    const kaesten = einheit==='kasten'?(p.kaesten||0):'';
+    const faesser = einheit==='fass'  ?(p.kaesten||0):'';
+    const kartons = einheit==='karton'?(p.kaesten||0):'';
+    const tot = einheit!=='fass'?(p.kaesten||0)*(p.proKasten||24)+(p.flaschen||0):'–';
+    rows.push([p.name, p.marke||'', kaesten, faesser, kartons, p.flaschen||0,
+      einheit!=='fass'?(p.proKasten||24):'–', p.liter||'', tot]);
+  });
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols'] = [30,12,8,8,8,14,10,10,12].map(w=>({wch:w}));
+  ws['!pageSetup'] = { orientation:'landscape', fitToPage:true, fitToWidth:1, fitToHeight:0, paperSize:9 };
+  XLSX.utils.book_append_sheet(wb, ws, 'Auswahl');
+  await shareOrSave(wb, `Lager_Auswahl_${now.toISOString().slice(0,10)}.xlsx`, `📊 Excel mit ${sorted.length} Artikeln`);
+};
+
+window.showMarkenDropdown = function(val) {
+  filterMarkenDropdown(val);
+};
+
+window.filterMarkenDropdown = function(val) {
+  const dd = document.getElementById('markenDropdown');
+  const all = window._allMarken || [];
+  const q = val.toLowerCase();
+  const filtered = all.filter(m => m.toLowerCase().includes(q));
+  if (!filtered.length) { dd.style.display='none'; return; }
+  dd.innerHTML = filtered.map(m =>
+    `<div class="marken-opt" data-val="${m.replace(/"/g,'&quot;')}"
+      style="padding:13px 14px;font-size:15px;cursor:pointer;border-bottom:1px solid var(--border)"
+    >${m}</div>`
+  ).join('');
+  dd.style.display = 'block';
+  dd.querySelectorAll('.marken-opt').forEach(el => {
+    const pick = e => {
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+      document.getElementById('fMarke').value = el.dataset.val;
+      dd.style.display = 'none';
+    };
+    el.addEventListener('mousedown',  pick);
+    el.addEventListener('touchstart', pick, { passive: false });
+  });
+};
+
+// ── SHARE OR SAVE ─────────────────────────────────────────────────────────────
+// ── ADMIN TABS ────────────────────────────────────────────────────────────────
+window.switchAdminTab = function(tab) {
+  [1,2,3].forEach(t => {
+    const p = document.getElementById('adminPanel'+t);
+    const b = document.getElementById('adminTab'+t);
+    if(p) p.style.display = t===tab?'block':'none';
+    if(b) {
+      const active = t===tab;
+      b.style.cssText = `padding:8px;border-radius:var(--r);border:2px solid ${active?'var(--accent)':'var(--border)'};background:${active?'var(--accent)':'var(--surface)'};color:${active?'#fff':'var(--muted)'};font-weight:700;font-size:13px;cursor:pointer${t===3?';grid-column:1/-1':''}`;
+    }
+  });
+  if (tab===2) renderMarkenMgmt();
+  if (tab===3) {
+    const el = document.getElementById('legendGridAdmin');
+    if (el) el.innerHTML = MHD_FARBEN.map(f=>
+      `<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:var(--r);background:var(--surface);border:1px solid var(--border)">
+        <span style="width:20px;height:20px;border-radius:50%;background:${f.farbe};display:inline-block;flex-shrink:0;border:1px solid rgba(0,0,0,.15)"></span>
+        <span style="font-size:13px;font-weight:600">${f.monat}</span>
+        <span style="font-size:12px;color:var(--muted);margin-left:auto">${f.name}</span>
+      </div>`).join('');
+  }
+};
+
+window.renderMarkenMgmt = function() {
+  const marken = [...new Set(Object.values(products).map(p=>p.marke).filter(Boolean))].sort();
+  const el = document.getElementById('markenMgmtList');
+  if (!marken.length) {
+    el.innerHTML = '<div style="color:var(--muted);font-size:13px;text-align:center;padding:12px">Noch keine Hersteller angelegt.</div>';
+    return;
+  }
+  el.innerHTML = marken.map(m => `
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)">
+      <div style="flex:1;font-size:14px;font-weight:600">🏷️ ${m}</div>
+      <button onclick="editMarke('${m.replace(/'/g,"\'")}'')" 
+        style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:5px 10px;font-size:12px;cursor:pointer">✏️</button>
+      <button onclick="deleteMarke('${m.replace(/'/g,"\'")}'')"
+        style="background:#fdecea;border:1px solid #f5c2c7;border-radius:8px;padding:5px 10px;font-size:12px;cursor:pointer;color:var(--red)">🗑️</button>
+    </div>`).join('');
+};
+
+window.addMarke = async function() {
+  const inp = document.getElementById('newMarkeIn');
+  const val = inp.value.trim();
+  if (!val) return;
+  // Prüfen ob schon vorhanden
+  const exists = Object.values(products).some(p=>p.marke===val);
+  if (exists) { toast('Hersteller existiert bereits','e'); return; }
+  inp.value = '';
+  toast('🏷️ ' + val + ' hinzugefügt – jetzt Artikeln zuweisen','i');
+  renderMarkenMgmt();
+};
+
+window.editMarke = async function(oldName) {
+  const neu = prompt('Hersteller umbenennen:', oldName);
+  if (!neu || neu.trim()===oldName) return;
+  const neuTrim = neu.trim();
+  // Alle Produkte mit diesem Hersteller umbenennen
+  const updates = Object.entries(products).filter(([,p])=>p.marke===oldName);
+  for (const [id] of updates) {
+    await fbUpdate(`products/${id}`, { marke: neuTrim });
+  }
+  toast(`✅ "${oldName}" → "${neuTrim}" (${updates.length} Artikel)`, 's');
+  renderMarkenMgmt();
+};
+
+window.deleteMarke = async function(name) {
+  const count = Object.values(products).filter(p=>p.marke===name).length;
+  if (!confirm(`"${name}" löschen bei ${count} Artikel${count!==1?'n':''}? Der Herstellername wird entfernt.`)) return;
+  const toUpdate = Object.entries(products).filter(([,p])=>p.marke===name);
+  for (const [id] of toUpdate) {
+    await fbUpdate(`products/${id}`, { marke: null });
+  }
+  toast(`🗑️ "${name}" entfernt (${toUpdate.length} Artikel)`, 'i');
+  renderMarkenMgmt();
+};
+
+window.renderMhdEditList = function(list) {
+  window._mhdEditList = [...list];
+  const el = document.getElementById('mhdEditList');
+  if (!list.length) {
+    el.innerHTML = '<span style="font-size:12px;color:var(--muted)">Noch keine MHD-Einträge</span>';
+    return;
+  }
+  el.innerHTML = list.sort().map(d => {
+    const [y,m] = d.slice(0,7).split('-').map(Number);
+    const f = mhdFarbe(m-1);
+    const st = mhdStatus(new Date(y,m-1,28).toISOString());
+    return `<span style="display:inline-flex;align-items:center;gap:5px;background:${st?.bg||'#f0fdf4'};border:1px solid ${f.farbe}33;border-radius:20px;padding:4px 10px;font-size:13px;font-weight:600">
+      <span style="width:10px;height:10px;border-radius:50%;background:${f.farbe};display:inline-block;border:1px solid rgba(0,0,0,.15)"></span>
+      <span style="color:${st?.color||'var(--text)'}">${f.monat.slice(0,3)} ${y}</span>
+      <button type="button" onclick="removeMhdEdit('${d}')" style="background:none;border:none;cursor:pointer;color:#999;font-size:14px;padding:0;line-height:1;margin-left:2px">✕</button>
+    </span>`;
+  }).join('');
+};
+
+window.addMhdEdit = function() {
+  const val = document.getElementById('mhdEditIn').value;
+  if (!val) { toast('Bitte Monat auswählen','e'); return; }
+  const [y,m] = val.split('-').map(Number);
+  const date = new Date(y,m-1,28).toISOString().slice(0,10);
+  if (!window._mhdEditList) window._mhdEditList = [];
+  if (window._mhdEditList.includes(date)) { toast('Dieser Monat ist bereits eingetragen','e'); return; }
+  window._mhdEditList.push(date);
+  renderMhdEditList(window._mhdEditList);
+  document.getElementById('mhdEditIn').value = '';
+  const [,mo] = date.slice(0,7).split('-').map(Number);
+  const f = mhdFarbe(mo-1);
+  toast(`📅 ${f.monat} hinzugefügt – ${f.emoji} ${f.name} Aufkleber`, 'i');
+};
+
+window.removeMhdEdit = function(date) {
+  window._mhdEditList = (window._mhdEditList||[]).filter(d=>d!==date);
+  renderMhdEditList(window._mhdEditList);
+};
+
+window.removeMhd = async function(id, date) {
+  const p = products[id];
+  if (!p) return;
+  const newList = (p.mhdList||[]).filter(d=>d!==date);
+  await fbUpdate(`products/${id}`, { mhdList: newList.length ? newList : null });
+  toast('📅 MHD entfernt','i');
+  showDashPopup('mhd');
+};
+
+window.shareOrSave = async function(wb, filename, successMsg) {
+  const wbout = XLSX.write(wb, { bookType:'xlsx', type:'array' });
+  const blob  = new Blob([wbout], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const file  = new File([blob], filename, { type: blob.type });
+
+  // Web Share API mit Datei-Support (Android Chrome, iOS Safari)
+  if (navigator.share && navigator.canShare && navigator.canShare({ files:[file] })) {
+    try {
+      await navigator.share({ files:[file], title: filename });
+      toast(successMsg, 's');
+      return;
+    } catch(e) {
+      if (e.name !== 'AbortError') {
+        // Fallback wenn Share fehlschlägt
+        XLSX.writeFile(wb, filename);
+        toast(successMsg, 's');
+      }
+      return;
+    }
+  }
+  // Fallback: direkt speichern (PC / Browser ohne Share API)
+  XLSX.writeFile(wb, filename);
+  toast(successMsg, 's');
+};
+
+window.clearFoundCard = function() {
+  currentId = null;
+  document.getElementById('foundCard').classList.remove('show');
+  document.getElementById('searchIn').value = '';
+  renderList();
+  bIn.value = '';
+  document.getElementById('qKLabel').textContent = 'Menge 1';
+  document.getElementById('qFLabel').textContent = 'Menge 2';
+};
+
+window.selProd = function(id) {
+  currentId = id;
+  const p = products[id];
+  const lbl = einheitLabel(p, true);
+  const ico = einheitIcon(p);
+  document.getElementById('fName').innerHTML = p.name + (p.liter ? ' <span style="font-size:11px;color:var(--muted);font-weight:400">('+( p.liter%1===0?p.liter+'.0':p.liter)+' Liter)</span>' : '');
+  document.getElementById('fKst').textContent  = p.kaesten;
+  document.getElementById('fFl').textContent   = p.flaschen;
+  // Einheit-Label in foundCard und Buchungsbereich anpassen
+  document.getElementById('fKstLabel').innerHTML = lbl + ': <strong id="fKst">' + p.kaesten + '</strong>';
+  document.getElementById('qKLabel').textContent = ico + ' ' + lbl;
+  document.getElementById('qFLabel').textContent = '🍾 Flaschen';
+  // Flaschen-Zeile ausblenden bei Fass (macht keinen Sinn)
+  const flRow = document.querySelector('.qty-grid .qty-block:last-child');
+  if (flRow) flRow.style.display = p.einheit === 'fass' ? 'none' : '';
+  document.getElementById('foundCard').classList.add('show');
+  window.scrollTo({top:0,behavior:'smooth'});
+  toast(ico + ' ' + p.name + ' ausgewählt','i');
+};
+
+// ── PRODUCT CRUD ──────────────────────────────────────────────────────────────
+window.openAdd = function(id, prefillBarcode) {
+  document.getElementById('eId').value = id||'';
+  if (id && products[id]) {
+    const p = products[id];
+    document.getElementById('mTitle').textContent = 'Produkt bearbeiten';
+    document.getElementById('fNm').value    = p.name;
+    document.getElementById('fMarke').value = p.marke||'';
+    document.getElementById('fBc').value    = p.barcode||'';
+    document.getElementById('fKat').value = p.kategorie||'Sonstiges';
+    document.getElementById('fPK').value  = p.proKasten||24;
+    document.getElementById('fLiter').value = p.liter||'';
+    document.getElementById('fK0').value  = p.kaesten;
+    document.getElementById('fF0').value  = p.flaschen;
+    document.getElementById('fMn').value  = p.minBestand||1;
+    // Einheitenauswahl beim Bearbeiten – aktuelle Einheit vorauswählen
+    document.getElementById('einheitRow').style.display = 'block';
+    selectEinheit(p.einheit || 'kasten');
+    // MHD-Bereich nur beim Bearbeiten anzeigen
+    document.getElementById('mhdEditRow').style.display = 'block';
+    renderMhdEditList(p.mhdList||[]);
+  } else {
+    document.getElementById('mTitle').textContent = '➕ Neues Produkt';
+    document.getElementById('fNm').value    = '';
+    document.getElementById('fMarke').value = '';
+    document.getElementById('fBc').value    = prefillBarcode || '';
+    document.getElementById('fKat').value = 'Sonstiges';
+    document.getElementById('fPK').value  = 24;
+    document.getElementById('fLiter').value = '';
+    document.getElementById('fK0').value  = 0;
+    document.getElementById('fF0').value  = 0;
+    document.getElementById('fMn').value  = 1;
+    // Einheitenauswahl bei neuem Artikel einblenden, Kasten als Standard
+    document.getElementById('einheitRow').style.display = 'block';
+    selectEinheit('kasten');
+    // MHD-Bereich bei neuem Artikel ausblenden
+    document.getElementById('mhdEditRow').style.display = 'none';
+    document.getElementById('mhdEditList').innerHTML = '';
+  }
+  document.getElementById('addModal').classList.add('open');
+  // Marken-Vorschläge aus bestehenden Produkten befüllen
+  window._allMarken = [...new Set(Object.values(products).map(p=>p.marke).filter(Boolean))].sort();
+  setTimeout(() => document.getElementById('fNm').focus(), 200);
+};
+
+window.closeAdd = function() { document.getElementById('addModal').classList.remove('open'); };
+
+window.saveProduct = async function() {
+  const name = document.getElementById('fNm').value.trim();
+  if (!name) { toast('Bitte Produktname eingeben','e'); return; }
+  const id  = document.getElementById('eId').value;
+  const bc  = document.getElementById('fBc').value.trim();
+  if (bc) {
+    const dup = Object.entries(products).find(([pid,p])=>p.barcode===bc && pid!==id);
+    if (dup) { toast('Barcode schon vergeben: '+dup[1].name,'e'); return; }
+  }
+  const einheit = document.querySelector('.einheit-btn.active')?.dataset.einheit || 'kasten';
+  const isNew = !id;
+  const data = {
+    name, barcode:bc,
+    marke:      document.getElementById('fMarke').value.trim()||null,
+    kategorie: document.getElementById('fKat').value,
+    proKasten:  parseInt(document.getElementById('fPK').value)||24,
+    kaesten:    parseInt(document.getElementById('fK0').value)||0,
+    flaschen:   parseInt(document.getElementById('fF0').value)||0,
+    minBestand: parseInt(document.getElementById('fMn').value)||0,
+    liter:      parseFloat(document.getElementById('fLiter').value)||null,
+    mhdList:    window._mhdEditList?.length ? [...window._mhdEditList].sort() : null,
+    einheit,
+  };
+  const key = id || Date.now().toString();
+  await fbUpdate(`products/${key}`, data);
+  if (!id) {
+    toast('✅ Produkt angelegt','s');
+    await fbPush('history', { pn: data.name, dir:'edit', nK:data.kaesten, nF:data.flaschen, dK:0, dF:0, ts:new Date().toISOString(), user:currentUser?.kuerzel||'?', note:'Neu angelegt' });
+  } else {
+    toast('✅ Produkt aktualisiert','s');
+    await fbPush('history', { pn: data.name, dir:'edit', nK:data.kaesten, nF:data.flaschen, dK:0, dF:0, ts:new Date().toISOString(), user:currentUser?.kuerzel||'?', note:'Bearbeitet' });
+  }
+  closeAdd();
+};
+
+document.getElementById('addModal').addEventListener('click', e => {
+  if (e.target===document.getElementById('addModal')) closeAdd();
+});
+document.getElementById('delModal').addEventListener('click', e => {
+  if (e.target===document.getElementById('delModal')) closeDelModal();
+});
+
+// ── CAMERA BARCODE (Native Foto) ─────────────────────────────────────────────
+let lastScanned   = '';
+let lastScannedTime = 0;
+
+window.openCamera = function() {
+  document.getElementById('camModal').classList.add('open');
+  document.getElementById('photoPreview').style.display = 'none';
+  document.getElementById('camLabel').style.display = 'block';
+  // Input zurücksetzen damit dasselbe Foto nochmal gewählt werden kann
+  document.getElementById('camInput').value = '';
+};
+
+window.closeCamera = function() {
+  document.getElementById('camModal').classList.remove('open');
+  document.getElementById('photoPreview').style.display = 'none';
+  document.getElementById('camInput').value = '';
+};
+
+window.handlePhoto = async function(input) {
+  const file = input.files[0];
+  if (!file) return;
+
+  // Foto als Vorschau anzeigen
+  const url = URL.createObjectURL(file);
+  document.getElementById('photoImg').src = url;
+  document.getElementById('photoPreview').style.display = 'block';
+  document.getElementById('camLabel').style.display = 'none';
+  document.getElementById('photoStatus').textContent = '🔍 Analysiere Barcode…';
+
+  try {
+    // Bild laden
+    const img = new Image();
+    img.src = url;
+    await new Promise(r => { img.onload = r; });
+
+    // Auf Canvas zeichnen mit Kontrast-Boost
+    const canvas = document.createElement('canvas');
+    canvas.width  = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.filter = 'contrast(2) brightness(1.2) saturate(0)';
+    ctx.drawImage(img, 0, 0);
+
+    // ZXing auf Image anwenden
+    const snapReader = new ZXingBrowser.BrowserMultiFormatReader();
+    const result = await snapReader.decodeFromImageUrl(url);
+    const code = result.getText();
+
+    if (code) {
+      document.getElementById('photoStatus').textContent = '✅ Erkannt: ' + code;
+      const now = Date.now();
+      lastScanned = code;
+      lastScannedTime = now;
+      setTimeout(() => {
+        closeCamera();
+        bIn.value = code;
+        doScan();
+      }, 800);
+    }
+  } catch(err) {
+    document.getElementById('photoStatus').textContent = '❌ Nicht erkannt – nochmal versuchen';
+    document.getElementById('camLabel').style.display = 'block';
+    document.getElementById('camInput').value = '';
+  }
+};
+
+document.getElementById('camModal').addEventListener('click', e => {
+  if (e.target === document.getElementById('camModal')) closeCamera();
+});
+
+// ── VIEW SWITCH ───────────────────────────────────────────────────────────────
+window.switchView = function(v) {
+  // Beim Verlassen des Lager-Tabs: Auswahl und Suche zurücksetzen
+  const prev = document.querySelector('.view.active')?.id;
+  if (prev === 'vLager' && v !== 'Lager') {
+    currentId = null;
+    document.getElementById('foundCard').classList.remove('show');
+    document.getElementById('searchIn').value = '';
+    renderList();
+  }
+  document.querySelectorAll('.view').forEach(e=>e.classList.remove('active'));
+  document.querySelectorAll('.nbtn').forEach(e=>e.classList.remove('active'));
+  document.getElementById('v'+v).classList.add('active');
+  document.getElementById('n'+v).classList.add('active');
+  document.querySelector('.fab').style.display = (v==='History'||v==='Bestellung'||v==='Inventur'||v==='Dashboard')?'none':'flex';
+  document.getElementById('scanStrip').style.display = v==='Lager'?'block':'none';
+  document.querySelector('.fab').style.display = (v==='History'||v==='Bestellung'||v==='Inventur')?'none':'flex';
+  if (v==='Artikel') { renderArtikel(); }
+  if (v==='Inventur') { renderInventur(); }
+  if (v==='Bestellung') renderBestellung();
+  if (v==='Dashboard') renderDashboard();
+  if (v==='History') renderHistory();
+};
+
+// ── EXCEL EXPORT ──────────────────────────────────────────────────────────────
+window.exportExcel = async function() {
+  const now = new Date();
+  const ds  = now.toLocaleDateString('de-DE')+' '+now.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
+
+  // Sortierung: Kästen → Kartons → Fässer → dann alphabetisch
+  const einheitOrder = { kasten:0, karton:1, fass:2 };
+  const sorted = Object.values(products).sort((a,b) => {
+    const oa = einheitOrder[a.einheit||'kasten'] ?? 0;
+    const ob = einheitOrder[b.einheit||'kasten'] ?? 0;
+    if (oa !== ob) return oa - ob;
+    return (a.name||'').localeCompare(b.name||'');
+  });
+
+  const rows = [
+    ['Getränke Lagerbestand — Stand: '+ds],
+    [],
+    ['Produkt','Firma','Kästen','Fässer','Kartons','Lose Flaschen','Fl/Einheit','Liter/Fl.','Gesamt Fl.']
+  ];
+
+  sorted.forEach(p => {
+    const einheit = p.einheit || 'kasten';
+    const kaesten = einheit === 'kasten' ? (p.kaesten||0) : '';
+    const faesser = einheit === 'fass'   ? (p.kaesten||0) : '';
+    const kartons = einheit === 'karton' ? (p.kaesten||0) : '';
+    const tot = einheit !== 'fass' ? (p.kaesten||0)*(p.proKasten||24)+(p.flaschen||0) : '–';
+    rows.push([
+      p.name,
+      p.marke||'',
+      kaesten, faesser, kartons,
+      p.flaschen||0,
+      einheit !== 'fass' ? (p.proKasten||24) : '–',
+      p.liter||'',
+      tot,
+    ]);
+  });
+
+  const wb  = XLSX.utils.book_new();
+  const ws1 = XLSX.utils.aoa_to_sheet(rows);
+  ws1['!cols'] = [30,12,8,8,8,14,10,10,12].map(w=>({wch:w}));
+  ws1['!pageSetup'] = { orientation:'landscape', fitToPage:true, fitToWidth:1, fitToHeight:0, paperSize:9 };
+  XLSX.utils.book_append_sheet(wb, ws1, 'Lagerbestand');
+  await shareOrSave(wb, `Lager_${now.toISOString().slice(0,10)}.xlsx`, '📊 Lagerbestand Excel');
+};
+
+// ── TOAST ─────────────────────────────────────────────────────────────────────
+window.toast = function(msg, type='i') {
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.className='toast '+type+' show';
+  clearTimeout(t._t);
+  t._t=setTimeout(()=>t.classList.remove('show'),3000);
+};
+
+// ── INVENTUR ──────────────────────────────────────────────────────────────────
+let invScanMode = false;
+
+window.renderInventur = function() {
+  const arr = Object.entries(products).map(([id,p])=>({id,...p}))
+    .sort((a,b)=>a.name.localeCompare(b.name));
+  document.getElementById('invCt').textContent = arr.length + ' Artikel';
+  const el = document.getElementById('invList');
+  if (!arr.length) { el.innerHTML = '<div class="empty"><div class="ei">🔢</div><p>Noch keine Produkte angelegt.</p></div>'; return; }
+  el.innerHTML = arr.map(p => `
+    <div class="inv-card" id="inv_${p.id}">
+      <div class="inv-top">
+        <div style="font-size:22px">${catIcons[p.kategorie]||'📦'}</div>
+        <div style="flex:1"><div class="inv-name">${p.name}${p.liter ? ' <span style="font-size:11px;color:var(--muted);font-weight:400">('+(p.liter%1===0?p.liter+'.0':p.liter)+' Liter)</span>' : ''}</div><div class="inv-bar">${p.marke?'🏷️ '+p.marke+' · ':''}${p.barcode||'–'}</div></div>
+        <div style="text-align:right;font-size:12px;color:#888">Ist: <b>${einheitIcon(p)}${p.kaesten} / ${p.flaschen}Fl</b></div>
+      </div>
+      <div class="inv-row">
+        <div class="inv-field"><label>${einheitLabel(p)}</label><input class="inv-in" type="number" id="ik_${p.id}" value="${p.kaesten}" min="0"></div>
+        <div class="inv-field"><label>Flaschen</label><input class="inv-in" type="number" id="if_${p.id}" value="${p.flaschen}" min="0"></div>
+      </div>
+      <button class="inv-save" id="isv_${p.id}" onclick="saveInvAndClear('${p.id}')">💾 Bestand speichern</button>
+    </div>`).join('');
+};
+
+window.saveInv = async function(id) {
+  const k = parseInt(document.getElementById('ik_'+id).value)||0;
+  const f = parseInt(document.getElementById('if_'+id).value)||0;
+  await fbUpdate(`products/${id}`, { kaesten: k, flaschen: f });
+  await fbPush('history', { pn:products[id].name, dK:0, dF:0, nK:k, nF:f, dir:'inv', ts:new Date().toISOString(), user:currentUser?.kuerzel||'?' });
+  toast('✅ ' + products[id].name + ' aktualisiert', 's');
+};
+
+window.saveInvAndClear = async function(id) {
+  await saveInv(id);
+  // Suchfeld leeren → alle Artikel wieder anzeigen
+  const invEl = document.getElementById('invScanIn');
+  if (invEl) { invEl.value = ''; }
+  renderInventur();
+};
+
+window.closeInvModal = function() { document.getElementById('invModal').classList.remove('open'); };
+window.saveInvModal = async function() {
+  const id = document.getElementById('invModalId').value;
+  const k  = parseInt(document.getElementById('invModalK').value)||0;
+  const f  = parseInt(document.getElementById('invModalF').value)||0;
+  await fbUpdate(`products/${id}`, { kaesten: k, flaschen: f });
+  await fbPush('history', { pn:products[id].name, dK:0, dF:0, nK:k, nF:f, dir:'inv', ts:new Date().toISOString(), user:currentUser?.kuerzel||'?' });
+  closeInvModal();
+  toast('✅ ' + products[id].name + ' – Inventur gespeichert', 's');
+  renderInventur();
+};
+
+// ── BESTELLUNG ────────────────────────────────────────────────────────────────
+let bestellung = [];
+// Bestellung aus localStorage laden
+try { const _b = localStorage.getItem('balloni_bestellung'); if(_b) bestellung = JSON.parse(_b); } catch(e){}
+
+window.renderBestellung = function() {
+  // Bestellung in localStorage speichern
+  try { localStorage.setItem('balloni_bestellung', JSON.stringify(bestellung)); } catch(e){}
+  const el = document.getElementById('bestList');
+  const em = document.getElementById('bestEmpty');
+  document.getElementById('bestCt').textContent = bestellung.length;
+  if (!bestellung.length) { el.innerHTML=''; em.style.display='block'; return; }
+  em.style.display = 'none';
+  el.innerHTML = bestellung.map((pos,i) => `
+    <div class="best-pos">
+      <div class="best-icon">${pos.icon||'📦'}</div>
+      <div class="best-info">
+        <div class="best-name">${pos.name}</div>
+        <div class="best-qty">${pos.k?pos.k+' Kasten':''} ${pos.f?pos.f+' Fl.':''} ${pos.note?'· '+pos.note:''}</div>
+      </div>
+      <button class="best-del" onclick="openEditBestPos(${i})" style="background:#f0f4ff;color:#3b5bdb;margin-right:4px">✏️</button>
+      <button class="best-del" onclick="delBestPos(${i})">×</button>
+    </div>`).join('');
+};
+
+window.addBestPos = function() {
+  // Fill product dropdown
+  const sel = document.getElementById('bestProd');
+  sel.innerHTML = '<option value="">-- Produkt wählen --</option>' +
+    Object.entries(products).sort((a,b)=>a[1].name.localeCompare(b[1].name))
+      .map(([id,p])=>`<option value="${id}">${p.name}</option>`).join('');
+  document.getElementById('bestK').value = 0;
+  document.getElementById('bestF').value = 0;
+  document.getElementById('bestNote').value = '';
+  document.getElementById('bestFreitext').value = '';
+  document.getElementById('bestModal').classList.add('open');
+};
+window.closeBestModal = function() { document.getElementById('bestModal').classList.remove('open'); };
+
+window.saveBestPos = function() {
+  const selEl = document.getElementById('bestProd');
+  const id    = selEl.value;
+  const frei  = document.getElementById('bestFreitext').value.trim();
+  const k     = parseInt(document.getElementById('bestK').value)||0;
+  const f     = parseInt(document.getElementById('bestF').value)||0;
+  const note  = document.getElementById('bestNote').value.trim();
+  if (!id && !frei) { toast('Bitte Produkt wählen oder Freitext eingeben','e'); return; }
+  if (!k && !f)     { toast('Bitte Menge eingeben','e'); return; }
+  let name, icon;
+  if (id && products[id]) {
+    name = products[id].name;
+    icon = catIcons[products[id].kategorie]||'📦';
+  } else {
+    name = frei; icon = '📦';
+  }
+
+  // Duplikat-Prüfung
+  const dupIdx = bestellung.findIndex(p => p.name === name);
+  if (dupIdx !== -1) {
+    const dup = bestellung[dupIdx];
+    closeBestModal();
+    const confirmed = confirm(
+      `"${name}" ist bereits in der Bestellung:\n` +
+      `${dup.k ? dup.k+' Kasten' : ''} ${dup.f ? dup.f+' Fl.' : ''}\n\n` +
+      `Soll die Menge addiert werden?\n` +
+      `→ Neu: ${(dup.k||0)+k} Kasten / ${(dup.f||0)+f} Fl.\n\n` +
+      `OK = Addieren   Abbrechen = Position bearbeiten`
+    );
+    if (confirmed) {
+      bestellung[dupIdx].k = (dup.k||0) + k;
+      bestellung[dupIdx].f = (dup.f||0) + f;
+      if (note && !dup.note) bestellung[dupIdx].note = note;
+      renderBestellung();
+      toast('✅ Menge zu ' + name + ' addiert', 's');
+    } else {
+      // Modal wieder öffnen mit bestehenden Werten zum Bearbeiten
+      openEditBestPos(dupIdx);
+    }
+    return;
+  }
+
+  bestellung.push({ name, icon, k, f, note });
+  closeBestModal();
+  renderBestellung();
+  toast('➕ ' + name + ' hinzugefügt', 's');
+};
+
+window.delBestPos = function(i) {
+  bestellung.splice(i,1);
+  renderBestellung();
+};
+
+window.openEditBestPos = function(i) {
+  const pos = bestellung[i];
+  const sel = document.getElementById('bestProd');
+  sel.innerHTML = '<option value="">-- Produkt wählen --</option>' +
+    Object.entries(products).sort((a,b)=>a[1].name.localeCompare(b[1].name))
+      .map(([id,p])=>`<option value="${id}">${p.name}</option>`).join('');
+  // Produkt in Dropdown vorauswählen falls vorhanden
+  const match = Object.entries(products).find(([,p])=>p.name===pos.name);
+  document.getElementById('bestProd').value = match ? match[0] : '';
+  document.getElementById('bestFreitext').value = match ? '' : pos.name;
+  document.getElementById('bestK').value = pos.k || 0;
+  document.getElementById('bestF').value = pos.f || 0;
+  document.getElementById('bestNote').value = pos.note || '';
+  // Modal-Titel + Speicher-Button anpassen
+  document.querySelector('#bestModal h2').textContent = '✏️ Position bearbeiten';
+  document.querySelector('#bestModal .btn-accent').onclick = () => updateBestPos(i);
+  document.getElementById('bestModal').classList.add('open');
+};
+
+window.updateBestPos = function(i) {
+  const selEl = document.getElementById('bestProd');
+  const id    = selEl.value;
+  const frei  = document.getElementById('bestFreitext').value.trim();
+  const k     = parseInt(document.getElementById('bestK').value)||0;
+  const f     = parseInt(document.getElementById('bestF').value)||0;
+  const note  = document.getElementById('bestNote').value.trim();
+  if (!id && !frei) { toast('Bitte Produkt wählen oder Freitext eingeben','e'); return; }
+  if (!k && !f)     { toast('Bitte Menge eingeben','e'); return; }
+  let name, icon;
+  if (id && products[id]) { name = products[id].name; icon = catIcons[products[id].kategorie]||'📦'; }
+  else { name = frei; icon = '📦'; }
+  bestellung[i] = { name, icon, k, f, note };
+  // Modal zurücksetzen
+  document.querySelector('#bestModal h2').textContent = 'Position hinzufügen';
+  document.querySelector('#bestModal .btn-accent').onclick = saveBestPos;
+  closeBestModal();
+  renderBestellung();
+  toast('✅ Position aktualisiert', 's');
+};
+
+window.exportBestellung = async function() {
+  if (!bestellung.length) { toast('Bestellung ist leer','e'); return; }
+  const now = new Date();
+  const ds  = now.toLocaleDateString('de-DE');
+
+  const rows = [
+    ['BALLONI Hallen und Veranstaltungs GmbH'],
+    ['Ehrenfeldgürtel 88-94 · 50823 Köln-Ehrenfeld'],
+    ['Tel: +49 (0) 221-510 910 · info@balloni.de'],
+    [''],
+    ['BESTELLLISTE – ' + ds],
+    [''],
+    ['Produkt', 'Einheit', 'Menge', 'Lose Flaschen', 'Notiz'],
+  ];
+  bestellung.forEach(pos => {
+    const prod = Object.values(products).find(p=>p.name===pos.name);
+    const einh = prod ? (prod.einheit==='fass'?'Fass':prod.einheit==='karton'?'Karton':'Kasten') : 'Kasten';
+    rows.push([pos.name, einh, pos.k||'', pos.f||'', pos.note||'']);
+  });
+  rows.push(['']);
+  rows.push(['Erstellt mit Drinkventory']);
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols'] = [35, 10, 10, 14, 25].map(w=>({wch:w}));
+  ws['!merges'] = [{s:{r:0,c:0},e:{r:0,c:4}},{s:{r:1,c:0},e:{r:1,c:4}},{s:{r:2,c:0},e:{r:2,c:4}}];
+  ws['!pageSetup'] = { orientation:'landscape', fitToPage:true, fitToWidth:1, fitToHeight:0, paperSize:9 };
+
+  // Styles
+  const thinBorder = { style:'thin', color:{ rgb:'BBBBBB' } };
+  const fullBorder = { top:thinBorder, bottom:thinBorder, left:thinBorder, right:thinBorder };
+  const headerRowIdx = 6; // 0-based: row 7 in Excel = "Produkt/Kästen/..."
+
+  const totalDataRows = rows.length;
+  const cols = ['A','B','C','D','E'];
+
+  for (let r = headerRowIdx; r < totalDataRows; r++) {
+    for (const col of cols) {
+      const ref = col + (r + 1);
+      if (!ws[ref]) ws[ref] = { v:'', t:'s' };
+      const isHeader = r === headerRowIdx;
+      ws[ref].s = {
+        border: fullBorder,
+        fill: isHeader ? { fgColor:{ rgb:'DDDDDD' }, patternType:'solid' } : { fgColor:{ rgb:'FFFFFF' }, patternType:'solid' },
+        font: isHeader ? { bold:true, sz:11 } : { sz:11 },
+        alignment: { vertical:'center', wrapText: true }
+      };
+    }
+  }
+
+  // Firmen-Header Zeilen fett
+  ['A1','A2','A3'].forEach(ref => {
+    if (ws[ref]) ws[ref].s = { font:{ bold:true, sz:11 } };
+  });
+  // Titel fett+größer
+  if (ws['A5']) ws['A5'].s = { font:{ bold:true, sz:13 } };
+
+  XLSX.utils.book_append_sheet(wb, ws, 'Bestellung');
+  await shareOrSave(wb, `Bestellung_${ds.replace(/\./g,'-')}.xlsx`, '📄 Bestellung exportiert');
+
+  // Verlauf-Eintrag
+  const posList = bestellung.map(p => {
+    const prod = Object.values(products).find(pr=>pr.name===p.name);
+    const einh = prod ? (prod.einheit==='fass'?'Fass':prod.einheit==='karton'?'Krt':'Kst') : 'Kst';
+    return `${p.name}${p.k?' ('+p.k+' '+einh+')':''}${p.f?' ('+p.f+' Fl)':''}`;
+  }).join(', ');
+  fbPush('history', {
+    pn: '🛒 Bestellung erstellt: ' + posList,
+    dK: 0, dF: 0, nK: 0, nF: 0,
+    dir: 'best',
+    ts: new Date().toISOString(),
+    user: currentUser?.kuerzel || '?'
+  });
+
+  // Bestellung nach Export leeren
+  bestellung = [];
+  localStorage.removeItem('balloni_bestellung');
+  renderBestellung();
+};
+
+// ── BENUTZER & AUTH ───────────────────────────────────────────────────────────
+// Standard-Admin (immer vorhanden, nicht löschbar):
+const DEFAULT_USERS = { ADM: { pin:'1234', role:'admin' } };
+let appUsers = {};
+let currentUser = null; // { kuerzel, role }
+
+function getUsers() {
+  const stored = JSON.parse(localStorage.getItem('balloni_users') || '{}');
+  return Object.assign({}, DEFAULT_USERS, stored);
+}
+
+// Firebase-User sofort beim Laden synchronisieren (vor Login)
+if (window.__fb && window.__fb.connected) {
+  window.__fb.onValue(window.__fb.ref(window.__fb.db, 'users'), snap => {
+    const fbUsers = snap.val() || {};
+    const local   = JSON.parse(localStorage.getItem('balloni_users') || '{}');
+    const merged  = Object.assign({}, local, fbUsers);
+    localStorage.setItem('balloni_users', JSON.stringify(merged));
+    appUsers = getUsers();
+  });
+}
+function saveUsers(u) {
+  // Don't save ADM to localStorage – it's always in DEFAULT_USERS
+  const toSave = Object.fromEntries(Object.entries(u).filter(([k])=>k!=='ADM'));
+  localStorage.setItem('balloni_users', JSON.stringify(toSave));
+  // Also sync to Firebase if connected
+  if (window.__fb && window.__fb.connected) {
+    window.__fb.set(window.__fb.ref(window.__fb.db, 'users'), toSave);
+  }
+}
+
+// Login Step 1 – Kürzel eingeben
+window.loginStep2 = function() {
+  const k = document.getElementById('userKuerzel').value.trim().toUpperCase();
+  if (k.length !== 3) { showLoginErr('Bitte genau 3 Buchstaben eingeben'); return; }
+  appUsers = getUsers();
+  if (!appUsers[k]) { showLoginErr('Benutzer "' + k + '" nicht gefunden'); return; }
+  document.getElementById('loginStep1').style.display = 'none';
+  document.getElementById('loginStep2').style.display = 'block';
+  document.getElementById('loginUserShow').textContent = k;
+  document.getElementById('userPin').value = '';
+  onPinInput();
+  setTimeout(() => document.getElementById('userPin').focus(), 150);
+};
+document.getElementById('userKuerzel').addEventListener('keydown', e => { if(e.key==='Enter') loginStep2(); });
+
+// Login Step 2 – PIN eingeben
+window.loginStep3 = function() {
+  const k   = document.getElementById('userKuerzel').value.trim().toUpperCase();
+  const pin = document.getElementById('userPin').value.trim();
+  appUsers = getUsers();
+  if (!appUsers[k] || appUsers[k].pin !== pin) {
+    showLoginErr('Falsche PIN – bitte nochmal versuchen');
+    document.getElementById('userPin').value = '';
+    onPinInput();
+    document.getElementById('userPin').focus();
+    return;
+  }
+  currentUser = { kuerzel: k, role: appUsers[k].role || (k === 'ADM' ? 'admin' : 'user') };
+  localStorage.setItem('balloni_session', JSON.stringify(currentUser));
+  document.getElementById('loginScreen').classList.add('hidden');
+  document.getElementById('userBadge').textContent = k;
+  startApp();
+};
+document.getElementById('userPin').addEventListener('keydown', e => { if(e.key==='Enter') loginStep3(); });
+
+window.backToStep1 = function() {
+  document.getElementById('loginStep2').style.display = 'none';
+  document.getElementById('loginStep1').style.display = 'block';
+  document.getElementById('userKuerzel').value = '';
+  document.getElementById('loginErr').textContent = '';
+  setTimeout(() => document.getElementById('userKuerzel').focus(), 100);
+};
+
+function showLoginErr(msg) {
+  const e = document.getElementById('loginErr');
+  e.textContent = msg;
+  setTimeout(() => e.textContent = '', 3000);
+}
+
+// ── BENUTZERVERWALTUNG ────────────────────────────────────────────────────────
+window.logoutUser = function() {
+  localStorage.removeItem('balloni_session');
+  currentUser = null;
+  document.getElementById('userBadge').textContent = '–';
+  document.getElementById('userKuerzel').value = '';
+  document.getElementById('userPin').value = '';
+  document.getElementById('loginStep1').style.display = 'block';
+  document.getElementById('loginStep2').style.display = 'none';
+  document.getElementById('loginErr').textContent = '';
+  document.getElementById('loginScreen').classList.remove('hidden');
+  setTimeout(() => document.getElementById('userKuerzel').focus(), 150);
+};
+
+window.openUserMgmt = function() {
+  if (!currentUser) return;
+  const isAdmin = currentUser.role==='admin' || currentUser.kuerzel==='ADM';
+  if (isAdmin) {
+    renderUserList();
+    document.getElementById('userMgmtModal').classList.add('open');
+  } else {
+    document.getElementById('legendModal').classList.add('open');
+  }
+};
+window.closeUserMgmt = function() { document.getElementById('userMgmtModal').classList.remove('open'); };
+
+function renderUserList() {
+  appUsers = getUsers();
+  const el = document.getElementById('userList');
+  el.innerHTML = Object.entries(appUsers).map(([k,u]) => `
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">
+      <div style="background:#1a1a1a;color:#fff;border-radius:20px;padding:3px 12px;font-weight:700;font-size:13px;letter-spacing:2px;flex-shrink:0">${k}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:600;color:var(--text)">${u.name||'<span style="color:var(--muted);font-style:italic">kein Name</span>'}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:1px">${u.role==='admin'?'⭐ Admin':'Mitarbeiter'}</div>
+      </div>
+      ${k==='ADM'?'<span style="font-size:11px;color:#bbb">System</span>':`<button onclick="deleteUser('${k}')" style="background:#fdecea;color:var(--red);border:1px solid #f5c6c3;border-radius:8px;padding:4px 10px;font-size:12px;cursor:pointer;flex-shrink:0">Löschen</button>`}
+    </div>`).join('');
+}
+
+window.createUser = function() {
+  const k    = document.getElementById('newUserK').value.trim().toUpperCase();
+  const pin  = document.getElementById('newUserP').value.trim();
+  const role = document.getElementById('newUserRole').value;
+  const name = document.getElementById('newUserName').value.trim();
+  if (k.length !== 3)            { toast('Kürzel muss genau 3 Buchstaben sein', 'e'); return; }
+  if (!/^[0-9]{4,8}$/.test(pin)) { toast('PIN muss 4–8 Ziffern sein', 'e'); return; }
+  appUsers = getUsers();
+  if (appUsers[k])               { toast('Kürzel "'+k+'" bereits vergeben', 'e'); return; }
+  appUsers[k] = { pin, role, name };
+  saveUsers(appUsers);
+  document.getElementById('newUserK').value   = '';
+  document.getElementById('newUserP').value   = '';
+  document.getElementById('newUserName').value = '';
+  renderUserList();
+  toast('✅ Benutzer ' + k + (name?' ('+name+')':'') + ' angelegt', 's');
+};
+
+window.deleteUser = function(k) {
+  if (k === currentUser.kuerzel) { toast('Eigenen Account nicht löschbar', 'e'); return; }
+  appUsers = getUsers();
+  delete appUsers[k];
+  saveUsers(appUsers);
+  renderUserList();
+  toast('Benutzer ' + k + ' gelöscht', 'i');
+};
+
+
+// ── PIN MASKING ───────────────────────────────────────────────────────────────
+window.onPinInput = function() {
+  const val  = document.getElementById('userPin').value;
+  const dots = document.getElementById('pinDots');
+  if (val.length === 0) {
+    dots.innerHTML = '<span style="color:var(--muted);font-size:14px">PIN eingeben…</span>';
+    dots.style.borderColor = 'var(--border)';
+  } else {
+    dots.innerHTML = val.split('').map(() =>
+      '<span style="width:14px;height:14px;background:var(--text);border-radius:50%;display:inline-block"></span>'
+    ).join('');
+    dots.style.borderColor = 'var(--accent)';
+  }
+};
+
+// ── DARK MODE ─────────────────────────────────────────────────────────────────
+window.toggleDark = function() {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  document.documentElement.setAttribute('data-theme', isDark ? 'light' : 'dark');
+  localStorage.setItem('balloni_theme', isDark ? 'light' : 'dark');
+  const newTheme = isDark ? 'light' : 'dark';
+  document.getElementById('darkBtn').textContent = isDark ? '🌙' : '☀️';
+  document.getElementById('darkBtn').style.background = newTheme==='dark'?'#2e3138':'#f2f1ee';
+  document.getElementById('darkBtn').style.color = newTheme==='dark'?'#f0f0f0':'#888';
+  document.getElementById('darkBtn').style.borderColor = newTheme==='dark'?'#3e4148':'#dddbd6';
+};
+
+// Theme beim Laden anwenden
+(function() {
+  const saved = localStorage.getItem('balloni_theme') || 'light';
+  document.documentElement.setAttribute('data-theme', saved);
+  // Button wird nach DOM-Ready gesetzt in startApp
+})();
+
+// ── DASHBOARD ─────────────────────────────────────────────────────────────────
+window.renderDashboard = function() {
+  const prods = Object.values(products);
+  const hists = Object.values(history);
+
+  // Stats
+  const totalProds  = prods.length;
+  const totalKasten = prods.filter(p=>!p.einheit||p.einheit==='kasten').reduce((s,p)=>s+(p.kaesten||0),0);
+  const totalFl     = prods.reduce((s,p)=>s+(p.flaschen||0),0);
+  const totalFass   = prods.filter(p=>p.einheit==='fass').reduce((s,p)=>s+(p.kaesten||0),0);
+  const totalFassL  = prods.filter(p=>p.einheit==='fass').reduce((s,p)=>s+(p.kaesten||0)*(p.liter||0),0);
+  const totalKarton = prods.filter(p=>p.einheit==='karton').reduce((s,p)=>s+(p.kaesten||0),0);
+  const alarmCount  = prods.filter(p=>p.kaesten<(p.minBestand||0)).length;
+  const mhdAlarm    = prods.filter(p=>(p.mhdList||[]).some(d=>mhdStatus(d)?.color==='#ef4444')).length;
+
+  document.getElementById('dashGrid').innerHTML = `
+    <div class="dash-card" onclick="showDashPopup('alle')" style="cursor:pointer"><div class="dash-val">${totalProds}</div><div class="dash-label">Artikel</div></div>
+    <div class="dash-card" onclick="showDashPopup('kaesten')" style="cursor:pointer"><div class="dash-val">${totalKasten}</div><div class="dash-label">Kästen gesamt</div></div>
+    <div class="dash-card" onclick="showDashPopup('flaschen')" style="cursor:pointer"><div class="dash-val">${totalFl}</div><div class="dash-label">Lose Flaschen</div></div>
+    <div class="dash-card" onclick="showDashPopup('fass')" style="cursor:pointer"><div class="dash-val">${totalFass}${totalFassL>0?' <span style="font-size:13px;color:var(--muted);font-weight:500">/ '+totalFassL+'L</span>':''}</div><div class="dash-label">🛢️ Fässer</div></div>
+    <div class="dash-card" onclick="showDashPopup('karton')" style="cursor:pointer"><div class="dash-val">${totalKarton}</div><div class="dash-label">📦 Kartons</div></div>
+    <div class="dash-card" onclick="showDashPopup('alarm')" style="cursor:pointer;${alarmCount>0?'border-color:var(--red);background:#fdecea':''}">
+      <div class="dash-val" style="${alarmCount>0?'color:var(--red)':''}">${alarmCount}</div>
+      <div class="dash-label">⚠️ Alarme</div>
+    </div>`;
+
+  // Alarm list
+  document.getElementById('dashAlarmCt').textContent = alarmCount;
+  const alarmEl = document.getElementById('dashAlarmList');
+  const alarmed = Object.entries(products)
+    .filter(([,p])=>p.kaesten<(p.minBestand||0))
+    .sort((a,b)=>a[1].kaesten-b[1].kaesten);
+  alarmEl.innerHTML = alarmed.length
+    ? alarmed.map(([id,p])=>`<div class="dash-alarm">
+        <span style="font-size:22px">${catIcons[p.kategorie]||'📦'}</span>
+        <div style="flex:1"><div style="font-weight:600;font-size:14px">${p.name}</div>
+        <div style="font-size:12px;color:var(--muted)">Bestand: ${einheitIcon(p)}${p.kaesten} · Minimum: ${p.minBestand} ${einheitLabel(p,true)}</div></div>
+        <div style="display:flex;flex-direction:column;gap:5px;flex-shrink:0">
+          <button class="btn btn-surface btn-sm" style="font-size:11px;padding:5px 8px"
+            data-action="lager" data-id="${id}">📦 Lager</button>
+          <button class="btn btn-sm" style="font-size:11px;padding:5px 8px;background:#fff3cd;color:#856404;border:1px solid #ffe69c"
+            data-action="bestellen" data-id="${id}">🛒 Bestellen</button>
+        </div>
+      </div>`).join('')
+    : '<div class="empty"><div class="ei">✅</div><p>Alles im grünen Bereich!</p></div>';
+
+  // Event delegation für Alarm-Buttons
+  alarmEl.onclick = function(e) {
+    const btn = e.target.closest('button[data-action]');
+    if (!btn) return;
+    const id     = btn.dataset.id;
+    const action = btn.dataset.action;
+    if (action === 'lager')     goToProduct(id);
+    if (action === 'bestellen') alarmToBestellung(id);
+  };
+
+  // Top 5 Eingang letzte 30 Tage
+  const since = Date.now() - 30*24*60*60*1000;
+  const counts = {};
+  hists.filter(h=>h.dir==='p' && new Date(h.ts).getTime()>since).forEach(h=>{
+    counts[h.pn] = (counts[h.pn]||0) + Math.abs(h.dK||0);
+  });
+  const top = Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const maxVal = top[0]?.[1] || 1;
+  document.getElementById('dashTop').innerHTML = top.length
+    ? top.map(([name,val])=>`<div class="dash-top-item">
+        <div style="font-size:13px;font-weight:600;min-width:120px;flex:1">${name}</div>
+        <div class="dash-bar-wrap"><div class="dash-bar" style="width:${Math.round(val/maxVal*100)}%"></div></div>
+        <div style="font-size:13px;font-weight:700;min-width:40px;text-align:right">${val} ${einheitLabel(products[id]||{},true)}</div>
+      </div>`).join('')
+    : '<div class="empty"><div class="ei">📊</div><p>Noch keine Buchungen in den letzten 30 Tagen.</p></div>';
+};
+
+// ── DASHBOARD NAV ─────────────────────────────────────────────────────────────
+window.goToProduct = function(id) {
+  const p = products[id];
+  if (!p) return;
+  switchView('Lager');
+  const searchEl = document.getElementById('searchIn');
+  searchEl.value = p.name;
+  renderList();
+  setTimeout(() => selProd(id), 200);
+  toast('📦 ' + p.name + ' im Lager', 'i');
+};
+
+window.alarmToBestellung = function(id) {
+  const p = products[id];
+  if (!p) return;
+  // Fehlende Kästen berechnen als Vorschlag
+  const fehlend = Math.max(1, (p.minBestand||0) - (p.kaesten||0));
+  // Bestellliste öffnen mit vorausgefülltem Modal
+  switchView('Bestellung');
+  // Dropdown befüllen
+  const sel = document.getElementById('bestProd');
+  sel.innerHTML = '<option value="">-- Produkt wählen --</option>' +
+    Object.entries(products).sort((a,b)=>a[1].name.localeCompare(b[1].name))
+      .map(([pid,pr])=>`<option value="${pid}"${pid===id?' selected':''}>${pr.name}</option>`).join('');
+  document.getElementById('bestK').value    = fehlend;
+  document.getElementById('bestF').value    = 0;
+  document.getElementById('bestNote').value = '⚠️ Mindestbestand unterschritten';
+  document.getElementById('bestFreitext').value = '';
+  // Modal-Titel anpassen
+  document.querySelector('#bestModal h2').textContent = '🛒 Nachbestellen';
+  document.querySelector('#bestModal .btn-accent').onclick = saveBestPos;
+  document.getElementById('bestModal').classList.add('open');
+  toast('🛒 ' + p.name + ' zur Bestellung vorgeschlagen', 'i');
+};
+function checkAlarms() {
+  const alarmed = Object.values(products).filter(p=>p.kaesten<(p.minBestand||0));
+  if (alarmed.length > 0) {
+    // Badge im Dashboard-Nav anzeigen
+    const btn = document.getElementById('nDashboard');
+    btn.innerHTML = `<span class="ni">📊</span>Dashboard<span style="background:var(--red);color:#fff;border-radius:10px;font-size:9px;padding:1px 5px;margin-left:3px;font-weight:700">${alarmed.length}</span>`;
+  } else {
+    document.getElementById('nDashboard').innerHTML = '<span class="ni">📊</span>Dashboard';
+  }
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+function startApp() {
+  // History filter
+  document.getElementById('histFilter').addEventListener('change', renderHistory);
+
+  // Suchfeld Lager – focus schützen damit bIn den Fokus nicht klaut
+  const searchInEl = document.getElementById('searchIn');
+  searchInEl.addEventListener('focus', () => { searchInEl.dataset.active = '1'; });
+  searchInEl.addEventListener('blur',  () => { delete searchInEl.dataset.active; });
+  searchInEl.addEventListener('input', renderList);
+
+  initFirebase();
+  syncOfflineQueue(); // Ausstehende Offline-Buchungen sync
+  // Apply saved theme icon
+  const t = localStorage.getItem('balloni_theme') || 'light';
+  const db2 = document.getElementById('darkBtn');
+  if (db2) db2.textContent = t === 'dark' ? '☀️' : '🌙';
+  // Dark mode button style update
+  document.getElementById('darkBtn').style.background = t==='dark'?'#2e3138':'#f2f1ee';
+  document.getElementById('darkBtn').style.color = t==='dark'?'#f0f0f0':'#888';
+  document.getElementById('darkBtn').style.borderColor = t==='dark'?'#3e4148':'#dddbd6';
+}
+
+// Session prüfen beim Laden
+const savedSession = localStorage.getItem('balloni_session');
+if (savedSession) {
+  try {
+    currentUser = JSON.parse(savedSession);
+    // Sicherheits-Fallback: ADM immer Admin
+    if (currentUser.kuerzel === 'ADM') currentUser.role = 'admin';
+    document.getElementById('loginScreen').classList.add('hidden');
+    document.getElementById('userBadge').textContent = currentUser.kuerzel;
+  // Legende-Grid befüllen
+  const lg = document.getElementById('legendGrid');
+  if (lg) lg.innerHTML = MHD_FARBEN.map((f,i)=>
+    `<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:var(--r);background:var(--surface);border:1px solid var(--border)">
+      <span style="width:20px;height:20px;border-radius:50%;background:${f.farbe};display:inline-block;flex-shrink:0;border:1px solid rgba(0,0,0,.15)"></span>
+      <span style="font-size:13px;font-weight:600">${f.monat}</span>
+      <span style="font-size:12px;color:var(--muted);margin-left:auto">${f.name}</span>
+    </div>`).join('');
+    startApp();
+  } catch(e) {
+    localStorage.removeItem('balloni_session');
+    setTimeout(() => document.getElementById('userKuerzel').focus(), 100);
+  }
+} else {
+  setTimeout(() => document.getElementById('userKuerzel').focus(), 100);
+}
+</script>
+<div class="overlay" id="dashPopup" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal" style="max-width:420px">
+    <h2 id="dashP
