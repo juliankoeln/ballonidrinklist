@@ -927,7 +927,7 @@ select.fi2{appearance:none}
         <strong style="color:var(--text)">Claude</strong> · KI-Assistent von Anthropic
       </p>
       <p style="font-size:11px;color:var(--muted);margin-top:10px;letter-spacing:1px">
-        Version 0.84
+        Version 0.85
       </p>
     </div>
     <button class="btn btn-surface" style="width:100%;margin-top:16px" onclick="document.getElementById('impressumModal').classList.remove('open')">Schließen</button>
@@ -1119,7 +1119,21 @@ function renderList() {
   const q = (document.getElementById('searchIn').value||'').toLowerCase();
   const arr = Object.entries(products)
     .map(([id,p])=>({id,...p}))
-    .filter(p => p.name?.toLowerCase().includes(q) || (p.barcode||'').includes(q) || (p.kategorie||'').toLowerCase().includes(q) || (p.marke||'').toLowerCase().includes(q));
+    .filter(p => p.name?.toLowerCase().includes(q) || (p.barcode||'').includes(q) || (p.kategorie||'').toLowerCase().includes(q) || (p.marke||'').toLowerCase().includes(q))
+    .sort((a,b) => {
+      // 1. MHD bald ablaufend zuerst (rot = kritisch)
+      const aNextMhd = (a.mhdList||[]).sort()[0];
+      const bNextMhd = (b.mhdList||[]).sort()[0];
+      const aMhdKrit = aNextMhd ? (mhdStatus(aNextMhd)?.color==='#ef4444' ? 0 : mhdStatus(aNextMhd)?.color==='#f97316' ? 1 : 2) : 3;
+      const bMhdKrit = bNextMhd ? (mhdStatus(bNextMhd)?.color==='#ef4444' ? 0 : mhdStatus(bNextMhd)?.color==='#f97316' ? 1 : 2) : 3;
+      if (aMhdKrit !== bMhdKrit) return aMhdKrit - bMhdKrit;
+      // 2. Mindestbestand-Alarm
+      const aLow = a.kaesten < (a.minBestand||0) ? 0 : 1;
+      const bLow = b.kaesten < (b.minBestand||0) ? 0 : 1;
+      if (aLow !== bLow) return aLow - bLow;
+      // 3. Alphabetisch
+      return (a.name||'').localeCompare(b.name||'');
+    });
 
   document.getElementById('listCt').textContent = arr.length + ' Artikel';
   const el = document.getElementById('prodList');
@@ -2728,7 +2742,11 @@ window.renderDashboard = function() {
     <div class="dash-card" onclick="showDashPopup('alarm')" style="cursor:pointer;${alarmCount>0?'border-color:var(--red);background:#fdecea':''}">
       <div class="dash-val" style="${alarmCount>0?'color:var(--red)':''}">${alarmCount}</div>
       <div class="dash-label">⚠️ Alarme</div>
-    </div>`;
+    </div>
+    <div class="dash-card" onclick="showDashPopup('mhd')" style="cursor:pointer;${mhdAlarm>0?'border-color:#f97316;background:#fff3e0':''}">
+      <div class="dash-val" style="${mhdAlarm>0?'color:#f97316':''}">${mhdAlarm}</div>
+      <div class="dash-label">📅 MHD Alarm</div>
+    </div>\`;
 
   // Alarm list
   document.getElementById('dashAlarmCt').textContent = alarmCount;
