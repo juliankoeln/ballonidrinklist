@@ -457,6 +457,7 @@ select.fi2{appearance:none}
       <button class="btn btn-accent" style="flex:1" onclick="document.getElementById('legendModal').classList.remove('open'); openPinModal()">🔑 PIN ändern</button>
       <button class="btn btn-surface" style="flex:1" onclick="document.getElementById('legendModal').classList.remove('open')">Schließen</button>
     </div>
+    <button class="btn btn-surface" style="width:100%;margin-top:8px;color:var(--red)" onclick="logoutUser()">⏻ Abmelden</button>
   </div>
 </div>
 
@@ -547,7 +548,6 @@ select.fi2{appearance:none}
   </div>
   <button id="userBadge" onclick="openUserMgmt()" style="background:#1a1a1a;color:#fff;border:none;border-radius:20px;padding:4px 12px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer;letter-spacing:2px;flex-shrink:0" title="Benutzerverwaltung">–</button>
   <button id="darkBtn" onclick="toggleDark()" style="background:#f2f1ee;color:#888;border:1px solid #dddbd6;border-radius:20px;padding:4px 10px;font-family:'DM Sans',sans-serif;font-size:14px;cursor:pointer;flex-shrink:0" title="Dark Mode">🌙</button>
-  <button onclick="logoutUser()" style="background:#f2f1ee;color:#888;border:1px solid #dddbd6;border-radius:20px;padding:4px 10px;font-family:'DM Sans',sans-serif;font-size:12px;cursor:pointer;flex-shrink:0" title="Abmelden">⏻</button>
   <div class="sync-dot" id="syncDot" title="Cloud-Status"></div>
 </header>
 
@@ -924,7 +924,7 @@ select.fi2{appearance:none}
         <strong style="color:var(--text)">Claude</strong> · KI-Assistent von Anthropic
       </p>
       <p style="font-size:11px;color:var(--muted);margin-top:10px;letter-spacing:1px">
-        Version 0.79
+        Version 0.80
       </p>
     </div>
     <button class="btn btn-surface" style="width:100%;margin-top:16px" onclick="document.getElementById('impressumModal').classList.remove('open')">Schließen</button>
@@ -2487,6 +2487,7 @@ window.openUserMgmt = function() {
   }
 };
 window.closeUserMgmt = function() { document.getElementById('userMgmtModal').classList.remove('open'); };
+window.logoutFromAdmin = function() { closeUserMgmt(); logoutUser(); };
 
 function renderUserList() {
   appUsers = getUsers();
