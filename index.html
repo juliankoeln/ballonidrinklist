@@ -56,7 +56,7 @@ window.addEventListener('offline', () => {
 
 <!-- Barcode scanner (Quagga2 - besser auf iPhone/Android) -->
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
-<script src="https://unpkg.com/@zxing/browser@latest"></script>
+<script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2@1.2.6/dist/quagga.min.js"></script>
 
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&display=swap');
@@ -232,7 +232,6 @@ select.fi2{appearance:none}
 
 /* CAMERA */
 #camModal .modal{background:#000;padding:0;border-radius:16px 16px 0 0;overflow:hidden;border-top:none}
-#camModal { touch-action: none; }
 
 /* SETUP BANNER */
 #setupBanner{background:#fffcf2;border:1px solid var(--accent2);border-radius:var(--r);padding:14px;margin-bottom:14px;font-size:13px;line-height:1.6;display:none}
@@ -453,8 +452,8 @@ select.fi2{appearance:none}
     <h2>🗓️ Monatsfarben – MHD Legende</h2>
     <p style="font-size:12px;color:#888;margin-bottom:14px">Jeder Monat hat eine feste Farbe. Klebt den passenden Aufkleber auf den Kasten beim Einlagern.</p>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px" id="legendGrid"></div>
-    <div class="mbtns" style="margin-top:16px">
-      <button class="btn btn-accent" style="flex:1" onclick="document.getElementById('legendModal').classList.remove('open'); openPinModal()">🔑 PIN ändern</button>
+    <div class="mbtns">
+      <button class="btn btn-accent" style="flex:1" onclick="document.getElementById('legendModal').classList.remove('open');openPinModal()">🔑 PIN ändern</button>
       <button class="btn btn-surface" style="flex:1" onclick="document.getElementById('legendModal').classList.remove('open')">Schließen</button>
     </div>
     <button class="btn btn-surface" style="width:100%;margin-top:8px;color:var(--red)" onclick="logoutUser()">⏻ Abmelden</button>
@@ -854,18 +853,15 @@ select.fi2{appearance:none}
   <div class="modal" style="max-width:320px">
     <h2 style="font-family:'Bebas Neue',sans-serif;letter-spacing:2px;font-size:22px">🔑 PIN ändern</h2>
     <p style="font-size:12px;color:var(--muted);margin-bottom:14px">Mindestens 4, maximal 6 Ziffern</p>
-    <div class="fg">
-      <label>Aktuelle PIN</label>
+    <div class="fg"><label id="pinOldLabel">Aktuelle PIN</label>
       <input type="password" id="pinOld" class="fi2" maxlength="6" inputmode="numeric"
         style="text-align:center;letter-spacing:6px;font-size:22px" placeholder="••••" autocomplete="off">
     </div>
-    <div class="fg">
-      <label>Neue PIN</label>
+    <div class="fg"><label>Neue PIN</label>
       <input type="password" id="pinNew1" class="fi2" maxlength="6" inputmode="numeric"
         style="text-align:center;letter-spacing:6px;font-size:22px" placeholder="••••" autocomplete="off">
     </div>
-    <div class="fg">
-      <label>Neue PIN wiederholen</label>
+    <div class="fg"><label>Neue PIN wiederholen</label>
       <input type="password" id="pinNew2" class="fi2" maxlength="6" inputmode="numeric"
         style="text-align:center;letter-spacing:6px;font-size:22px" placeholder="••••" autocomplete="off">
     </div>
@@ -877,32 +873,29 @@ select.fi2{appearance:none}
 </div>
 
 <!-- CAMERA MODAL -->
-<!-- KAMERA MODAL -->
 <div class="overlay" id="camModal">
   <div class="modal" style="padding:0;border-radius:20px 20px 0 0;overflow:hidden;background:#000">
     <div id="camWrap" style="position:relative;width:100%;background:#000;min-height:220px">
-      <video id="zxing-video" style="width:100%;max-height:55vh;object-fit:cover;display:block;filter:contrast(1.4) brightness(1.1) saturate(0.3)" autoplay muted playsinline onclick="tapSnapshot(event)"></video>
-      <canvas id="zxing-canvas" style="display:none"></canvas>
-      <div id="focusRing" style="display:none;position:absolute;width:70px;height:70px;border:3px solid #fff;border-radius:50%;pointer-events:none;transform:translate(-50%,-50%);transition:opacity 0.3s"></div>
-      <!-- Scan-Rahmen -->
+      <!-- Quagga rendert hier rein -->
+      <div id="quagga-container" style="width:100%;overflow:hidden;max-height:55vh"></div>
+      <!-- Scan-Rahmen Overlay -->
       <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none">
         <div style="position:relative;width:72%;max-width:280px;height:100px">
           <div style="width:100%;height:100%;border:2px solid var(--accent);border-radius:8px;box-shadow:0 0 0 9999px rgba(0,0,0,0.5)"></div>
           <div id="scanLine" style="position:absolute;left:0;right:0;height:2px;background:var(--accent);top:0;animation:scanline 2s ease-in-out infinite"></div>
         </div>
       </div>
-      <div style="position:absolute;bottom:8px;left:0;right:0;text-align:center;color:rgba(255,255,255,0.5);font-size:11px;pointer-events:none">👆 Antippen zum Scannen</div>
       <button id="camClose" onclick="closeCamera()" style="position:absolute;top:10px;right:10px;background:rgba(0,0,0,.7);border:none;color:#fff;border-radius:50%;width:36px;height:36px;font-size:18px;cursor:pointer;z-index:10;display:flex;align-items:center;justify-content:center">✕</button>
     </div>
+    <!-- Erkannter Barcode Anzeige -->
     <div id="detectedBar" style="display:none;background:#142a1e;border-top:2px solid var(--green);padding:10px 16px;text-align:center">
       <div style="font-size:11px;color:var(--muted);margin-bottom:2px">ERKANNT</div>
       <div id="detectedCode" style="font-family:monospace;font-size:18px;color:var(--green);font-weight:700"></div>
     </div>
     <div id="camStatus" style="background:#111;color:var(--muted);text-align:center;padding:10px 14px;font-size:13px">Kamera wird gestartet…</div>
     <div style="background:#000;padding:10px 14px;display:flex;gap:8px">
-      <button id="torchBtn" onclick="toggleTorch()" style="background:#333;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:13px;cursor:pointer">🔦 Licht</button>
-      <button class="btn btn-surface" style="flex:1;font-size:13px" onclick="switchCam()">🔄 Wechseln</button>
-      <button class="btn btn-surface" style="flex:1;font-size:13px" onclick="closeCamera()">✕ Schließen</button>
+      <button class="btn btn-surface" style="flex:1;font-size:13px" onclick="switchCam()">🔄 Kamera wechseln</button>
+      <button class="btn btn-surface" style="flex:1;font-size:13px" onclick="closeCamera()">Abbrechen</button>
     </div>
   </div>
 </div>
@@ -932,7 +925,7 @@ select.fi2{appearance:none}
         <strong style="color:var(--text)">Claude</strong> · KI-Assistent von Anthropic
       </p>
       <p style="font-size:11px;color:var(--muted);margin-top:10px;letter-spacing:1px">
-        Version 0.81
+        Version 0.80
       </p>
     </div>
     <button class="btn btn-surface" style="width:100%;margin-top:16px" onclick="document.getElementById('impressumModal').classList.remove('open')">Schließen</button>
@@ -1979,135 +1972,153 @@ document.getElementById('delModal').addEventListener('click', e => {
   if (e.target===document.getElementById('delModal')) closeDelModal();
 });
 
-// ── CAMERA BARCODE (Native Foto) ─────────────────────────────────────────────
-let lastScanned   = '';
-let lastScannedTime = 0;
-
-// ── CAMERA BARCODE (ZXing Live) ───────────────────────────────────────────────
-let zxingReader   = null;
-let zxingControls = null;
-let lastScanned   = '';
+// ── CAMERA BARCODE (Quagga2) ──────────────────────────────────────────────────
+let quaggaRunning = false;
+let lastScanned = '';
 let lastScannedTime = 0;
 let camFacingBack = true;
 
 window.openCamera = async function() {
-  try { if (screen.orientation?.lock) await screen.orientation.lock('portrait'); } catch(e) {}
   document.getElementById('camModal').classList.add('open');
-  document.getElementById('camStatus').textContent = '📷 Kamera wird gestartet…';
+  document.getElementById('camStatus').textContent = '📷 Kamera-Berechtigung wird angefragt…';
   document.getElementById('detectedBar').style.display = 'none';
-  await startZxing();
+  startQuagga();
 };
 
-async function startZxing() {
-  if (zxingControls) { try { zxingControls.stop(); } catch(e){} zxingControls = null; }
-  if (zxingReader)   { try { zxingReader.reset();   } catch(e){} zxingReader   = null; }
-  try {
-    if (typeof ZXingBrowser === 'undefined') {
-      document.getElementById('camStatus').textContent = '⚠️ Scanner lädt noch…';
-      setTimeout(startZxing, 1000);
+function startQuagga() {
+  if (quaggaRunning) { Quagga.stop(); quaggaRunning = false; }
+
+  const container = document.getElementById('quagga-container');
+  container.innerHTML = ''; // reset
+
+  Quagga.init({
+    inputStream: {
+      name: 'Live',
+      type: 'LiveStream',
+      target: container,
+      constraints: {
+        facingMode: camFacingBack ? 'environment' : 'user',
+        width:  { min: 640, ideal: 1920 },
+        height: { min: 480, ideal: 1080 },
+        advanced: [{ torch: window._torchOn || false }],
+      },
+    },
+    decoder: {
+      readers: [
+        'ean_reader',       // EAN-13 (Standard Supermarkt)
+        'ean_8_reader',     // EAN-8
+        'upc_reader',       // UPC-A
+        'upc_e_reader',     // UPC-E
+        'code_128_reader',  // Code 128
+        'code_39_reader',   // Code 39
+      ],
+      multiple: false,
+    },
+    locate: true,
+    frequency: 20,
+    halfSample: true,
+  }, function(err) {
+    if (err) {
+      let msg = '⚠️ ' + err.message;
+      if (err.name === 'NotAllowedError' || (err.message||'').includes('Permission'))
+        msg = '⛔ Kamera verweigert – bitte in Einstellungen erlauben.';
+      document.getElementById('camStatus').textContent = msg;
       return;
     }
-    zxingReader = new ZXingBrowser.BrowserMultiFormatReader();
-    const devices = await ZXingBrowser.BrowserCodeReader.listVideoInputDevices();
-    let deviceId = undefined;
-    if (devices.length > 0) {
-      const back = devices.find(d => /back|rear|environment|rück/i.test(d.label));
-      deviceId = camFacingBack
-        ? (back ? back.deviceId : devices[devices.length-1].deviceId)
-        : devices[0].deviceId;
-    }
-    const videoEl = document.getElementById('zxing-video');
+    Quagga.start();
+    quaggaRunning = true;
     document.getElementById('camStatus').textContent = '🔍 Barcode in den Rahmen halten…';
-    zxingControls = await zxingReader.decodeFromVideoDevice(
-      deviceId, videoEl,
-      (result, error) => {
-        if (!result) return;
-        const code = result.getText();
-        if (!code) return;
-        const now = Date.now();
-        if (code === lastScanned && now - lastScannedTime < 1500) return;
-        lastScanned = code;
-        lastScannedTime = now;
-        document.getElementById('detectedCode').textContent = code;
-        document.getElementById('detectedBar').style.display = 'block';
-        document.getElementById('camStatus').textContent = '✅ Barcode erkannt!';
-        setTimeout(() => { closeCamera(); bIn.value = code; doScan(); }, 600);
-      }
-    );
-  } catch(err) {
-    let msg = '⚠️ ' + (err.message || String(err));
-    if (err.name === 'NotAllowedError' || (err.message||'').includes('ermission'))
-      msg = '⛔ Kamera verweigert – bitte in Einstellungen erlauben.';
-    document.getElementById('camStatus').textContent = msg;
-  }
-}
 
-window.tapSnapshot = async function(e) {
-  const vid    = document.getElementById('zxing-video');
-  const canvas = document.getElementById('zxing-canvas');
-  const ring   = document.getElementById('focusRing');
-  const rect   = vid.getBoundingClientRect();
-  ring.style.left    = (e.clientX - rect.left) + 'px';
-  ring.style.top     = (e.clientY - rect.top)  + 'px';
-  ring.style.display = 'block';
-  ring.style.opacity = '1';
-  ring.style.borderColor = '#fff';
-  setTimeout(() => { ring.style.opacity='0'; setTimeout(()=>ring.style.display='none',300); }, 1200);
-  document.getElementById('camStatus').textContent = '📸 Analysiere…';
-  try {
-    canvas.width  = vid.videoWidth  || 1280;
-    canvas.height = vid.videoHeight || 720;
-    const ctx = canvas.getContext('2d');
-    ctx.filter = 'contrast(2) brightness(1.3) saturate(0)';
-    ctx.drawImage(vid, 0, 0, canvas.width, canvas.height);
-    ctx.filter = 'none';
-    const imgSrc = canvas.toDataURL('image/png');
-    const img = new Image();
-    img.src = imgSrc;
-    await new Promise(r => img.onload = r);
-    const snapReader = new ZXingBrowser.BrowserMultiFormatReader();
-    const result = await snapReader.decodeFromImageElement(img);
-    const code = result.getText();
-    if (code) {
-      ring.style.borderColor = '#22c55e';
-      document.getElementById('detectedCode').textContent = code;
-      document.getElementById('detectedBar').style.display = 'block';
-      document.getElementById('camStatus').textContent = '✅ Barcode erkannt!';
-      lastScanned = code; lastScannedTime = Date.now();
-      setTimeout(() => { closeCamera(); bIn.value = code; doScan(); }, 600);
+    // Video-Element von Quagga stylen
+    const vid = container.querySelector('video');
+    if (vid) {
+      vid.style.cssText = 'width:100%;max-height:55vh;object-fit:cover;display:block';
     }
-  } catch(err) {
-    document.getElementById('camStatus').textContent = '🔍 Nicht erkannt – nochmal tippen…';
-    setTimeout(() => { document.getElementById('camStatus').textContent = '🔍 Barcode in den Rahmen halten…'; }, 2000);
-  }
-};
+    const canvas = container.querySelector('canvas');
+    if (canvas) canvas.style.display = 'none'; // debug canvas ausblenden
+  });
+
+  // Barcode erkannt
+  Quagga.offDetected(); // alte listener entfernen
+  let confirmCode = '';
+  let confirmCount = 0;
+  const NEEDED = 2; // wie oft muss der gleiche Code hintereinander erkannt werden
+
+  Quagga.onDetected(function(result) {
+    const code = result?.codeResult?.code;
+    if (!code) return;
+
+    // Gleichen Code nicht sofort zweimal scannen (3 Sek. Sperre nach Erfolg)
+    const now = Date.now();
+    if (code === lastScanned && now - lastScannedTime < 3000) return;
+
+    // Bestätigungs-Zähler
+    if (code === confirmCode) {
+      confirmCount++;
+    } else {
+      confirmCode = code;
+      confirmCount = 1;
+    }
+
+    // Fortschritt anzeigen
+    const dots = '●'.repeat(confirmCount) + '○'.repeat(Math.max(0, NEEDED - confirmCount));
+    document.getElementById('camStatus').textContent = `🔍 Barcode halten… ${dots}`;
+
+    if (confirmCount < NEEDED) return; // noch nicht sicher genug
+
+    // Jetzt sicher – akzeptieren
+    lastScanned = code;
+    lastScannedTime = now;
+    confirmCode = '';
+    confirmCount = 0;
+
+    // Vibration als Feedback (Android/iPhone)
+    if (navigator.vibrate) navigator.vibrate(80);
+
+    // Anzeigen
+    document.getElementById('detectedCode').textContent = code;
+    document.getElementById('detectedBar').style.display = 'block';
+    document.getElementById('camStatus').textContent = '✅ Barcode erkannt!';
+
+    // Kurz warten dann schließen & verarbeiten
+    setTimeout(() => {
+      closeCamera();
+      bIn.value = code;
+      doScan();
+    }, 600);
+  });
+}
 
 window._torchOn = false;
 window.toggleTorch = async function() {
   window._torchOn = !window._torchOn;
   document.getElementById('torchBtn').textContent = window._torchOn ? '🔦 Licht aus' : '🔦 Licht';
   document.getElementById('torchBtn').style.background = window._torchOn ? '#f97316' : '#333';
+  // Torch über MediaStream Track direkt ansteuern
   try {
-    const vid = document.getElementById('zxing-video');
+    const vid = document.querySelector('#quagga-container video');
     if (vid?.srcObject) {
       const track = vid.srcObject.getVideoTracks()[0];
-      if (track?.getCapabilities()?.torch !== undefined)
+      if (track?.getCapabilities()?.torch !== undefined) {
         await track.applyConstraints({ advanced: [{ torch: window._torchOn }] });
+      }
     }
-  } catch(e) { toast('Taschenlampe nicht verfügbar','e'); }
+  } catch(e) { toast('Taschenlampe nicht verfügbar auf diesem Gerät','e'); }
+};
+window.switchCam = function() {
+  camFacingBack = !camFacingBack;
+  startQuagga();
 };
 
-window.switchCam = function() { camFacingBack = !camFacingBack; startZxing(); };
-
 window.closeCamera = function() {
-  if (zxingControls) { try { zxingControls.stop(); } catch(e){} zxingControls = null; }
-  if (zxingReader)   { try { zxingReader.reset();   } catch(e){} zxingReader   = null; }
-  const vid = document.getElementById('zxing-video');
-  if (vid?.srcObject) { vid.srcObject.getTracks().forEach(t => t.stop()); vid.srcObject = null; }
-  try { if (screen.orientation?.unlock) screen.orientation.unlock(); } catch(e) {}
+  if (quaggaRunning) {
+    try { Quagga.stop(); } catch(e) {}
+    quaggaRunning = false;
+  }
   window._torchOn = false;
   const tb = document.getElementById('torchBtn');
   if (tb) { tb.textContent='🔦 Licht'; tb.style.background='#333'; }
+  document.getElementById('quagga-container').innerHTML = '';
   document.getElementById('detectedBar').style.display = 'none';
   document.getElementById('camModal').classList.remove('open');
 };
@@ -2576,7 +2587,7 @@ function renderUserList() {
       </div>
       <div style="display:flex;gap:6px;flex-shrink:0">
         <button onclick="openPinModalFor('${k}')" style="background:#e8f4fd;color:#1a6fa8;border:1px solid #b3d7f0;border-radius:8px;padding:4px 10px;font-size:12px;cursor:pointer">🔑 PIN</button>
-        ${k==='ADM'?'<span style="font-size:11px;color:#bbb;padding:4px 6px">System</span>':`<button onclick="deleteUser('${k}')" style="background:#fdecea;color:var(--red);border:1px solid #f5c6c3;border-radius:8px;padding:4px 10px;font-size:12px;cursor:pointer">Löschen</button>`}
+        ${k==='ADM'?'':`<button onclick="deleteUser('${k}')" style="background:#fdecea;color:var(--red);border:1px solid #f5c6c3;border-radius:8px;padding:4px 10px;font-size:12px;cursor:pointer">Löschen</button>`}
       </div>
     </div>`).join('');
 }
@@ -2610,12 +2621,12 @@ window.deleteUser = function(k) {
 
 
 // ── PIN ÄNDERN ────────────────────────────────────────────────────────────────
-let pinModalTarget = null; // Kürzel des Users dessen PIN geändert wird
+let pinModalTarget = null;
 
 window.openPinModal = function() {
-  // Für eigenen Account
   pinModalTarget = currentUser.kuerzel;
-  document.getElementById('pinOld').value  = '';
+  document.getElementById('pinOldLabel').textContent = 'Aktuelle PIN';
+  document.getElementById('pinOld').value = '';
   document.getElementById('pinNew1').value = '';
   document.getElementById('pinNew2').value = '';
   document.getElementById('pinModal').classList.add('open');
@@ -2623,13 +2634,11 @@ window.openPinModal = function() {
 };
 
 window.openPinModalFor = function(k) {
-  // Admin ändert PIN für anderen User (ohne alte PIN Abfrage)
   pinModalTarget = k;
-  document.getElementById('pinOld').value  = '';
+  document.getElementById('pinOldLabel').textContent = k === currentUser.kuerzel ? 'Aktuelle PIN' : 'Deine Admin-PIN zur Bestätigung';
+  document.getElementById('pinOld').value = '';
   document.getElementById('pinNew1').value = '';
   document.getElementById('pinNew2').value = '';
-  const isOwnPin = k === currentUser.kuerzel;
-  document.querySelector('#pinModal label').textContent = isOwnPin ? 'Aktuelle PIN' : 'Admin PIN (deine eigene)';
   document.getElementById('pinModal').classList.add('open');
   setTimeout(() => document.getElementById('pinOld').focus(), 200);
 };
@@ -2643,25 +2652,17 @@ window.savePinChange = function() {
   const old  = document.getElementById('pinOld').value.trim();
   const new1 = document.getElementById('pinNew1').value.trim();
   const new2 = document.getElementById('pinNew2').value.trim();
-
   if (!/^[0-9]{4,6}$/.test(old))  { toast('Aktuelle PIN: 4–6 Ziffern', 'e'); return; }
   if (!/^[0-9]{4,6}$/.test(new1)) { toast('Neue PIN: 4–6 Ziffern', 'e'); return; }
   if (new1 !== new2)               { toast('Neue PINs stimmen nicht überein', 'e'); return; }
-
   appUsers = getUsers();
-  const isOwnPin = pinModalTarget === currentUser.kuerzel;
-
-  // Verifizierung: eigene alte PIN oder Admin-PIN
-  const verifyUser = isOwnPin ? pinModalTarget : currentUser.kuerzel;
-  if (appUsers[verifyUser]?.pin !== old) {
-    toast('Falsche PIN – bitte nochmal', 'e'); return;
-  }
-
+  const verifyUser = currentUser.kuerzel;
+  if (appUsers[verifyUser]?.pin !== old) { toast('Falsche PIN – bitte nochmal', 'e'); return; }
   appUsers[pinModalTarget].pin = new1;
   saveUsers(appUsers);
   closePinModal();
   toast('✅ PIN erfolgreich geändert', 's');
-  if (!isOwnPin) renderUserList();
+  renderUserList();
 };
 
 // ── PIN MASKING ───────────────────────────────────────────────────────────────
