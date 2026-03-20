@@ -607,7 +607,6 @@ select.fi2{appearance:none}
     <div id="mhdHint" style="margin-top:6px;font-size:13px;display:none"></div>
   </div>
   <div class="act-row">
-    <button class="btn btn-surface btn-sm" id="barcodeFoundBtn" onclick="showBarcodeForCurrent()" style="padding:8px 12px">🔢</button>
     <button class="btn btn-green" id="eingangsBtn" onclick="handleEingang()">➕ Eingang</button>
     <button class="btn btn-red"   onclick="hideMhdRow(); applyChange(-1)">➖ Ausgang</button>
   </div>
@@ -953,7 +952,7 @@ select.fi2{appearance:none}
         <strong style="color:var(--text)">Claude</strong> · KI-Assistent von Anthropic
       </p>
       <p style="font-size:11px;color:var(--muted);margin-top:10px;letter-spacing:1px">
-        Version 0.92
+        Version 0.93
       </p>
     </div>
     <button class="btn btn-surface" style="width:100%;margin-top:16px" onclick="document.getElementById('impressumModal').classList.remove('open')">Schließen</button>
@@ -2704,11 +2703,6 @@ function generateInternalEAN(productId) {
   const d12 = '200'+base;
   return d12 + calcEAN13Check(d12);
 }
-window.showBarcodeForCurrent = function() {
-  if (currentId) openBarcodeModal(currentId);
-  else toast('Bitte zuerst Produkt scannen', 'e');
-};
-
 window.openBarcodeModal = function(productId) {
   const p = products[productId];
   if (!p) return;
