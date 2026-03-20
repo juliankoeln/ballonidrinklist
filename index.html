@@ -3,9 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>🍺 Getränke Lager</title>
+<title>Drinkventory</title>
 
 <!-- Firebase -->
+<script>
+window.addEventListener('error', function(e) { console.warn('Fehler:', e.message); return true; });
+window.addEventListener('unhandledrejection', function(e) { console.warn('Promise-Fehler:', e.reason); e.preventDefault(); });
+</script>
 
 <script>
 // ── SERVICE WORKER ────────────────────────────────────────────────────────────
@@ -23,11 +27,6 @@ window.addEventListener('offline', () => {
   document.getElementById('syncDot')?.classList.add('offline-mode');
   if (typeof toast === 'function') toast('📵 Offline – Buchungen werden zwischengespeichert', 'e');
 });
-</script>
-
-<script>
-window.addEventListener('error', function(e) { console.warn('Fehler:', e.message); return true; });
-window.addEventListener('unhandledrejection', function(e) { console.warn('Promise-Fehler:', e.reason); e.preventDefault(); });
 </script>
 
 <script type="module">
@@ -341,9 +340,7 @@ select.fi2{appearance:none}
 .best-name{font-size:13px;font-weight:600;color:var(--text)}
 .best-qty{font-size:11px;color:var(--muted);margin-top:2px}
 .best-del{background:#fdecea;color:var(--red);border:none;border-radius:8px;width:32px;height:32px;font-size:18px;cursor:pointer;flex-shrink:0}
-@media screen and (orientation: landscape) {
-  #loginWrap, main, header, nav { max-width:480px; margin-left:auto; margin-right:auto; }
-}
+@media screen and (orientation:landscape){#loginWrap,main,header,nav{max-width:480px;margin-left:auto;margin-right:auto}}
 </style>
 </head>
 <body>
@@ -858,7 +855,6 @@ select.fi2{appearance:none}
 </div>
 
 
-
 <!-- DASHBOARD POPUP -->
 <div class="overlay" id="dashPopup" onclick="if(event.target===this)this.classList.remove('open')">
   <div class="modal" style="max-width:420px">
@@ -868,23 +864,17 @@ select.fi2{appearance:none}
   </div>
 </div>
 
-<!-- PIN ÄNDERN MODAL -->
+<!-- PIN MODAL -->
 <div class="overlay" id="pinModal" onclick="if(event.target===this)closePinModal()">
   <div class="modal" style="max-width:320px">
     <h2 style="font-family:'Bebas Neue',sans-serif;letter-spacing:2px;font-size:22px">🔑 PIN ändern</h2>
     <p style="font-size:12px;color:var(--muted);margin-bottom:14px">Mindestens 4, maximal 6 Ziffern</p>
     <div class="fg"><label id="pinOldLabel">Aktuelle PIN</label>
-      <input type="password" id="pinOld" class="fi2" maxlength="6" inputmode="numeric"
-        style="text-align:center;letter-spacing:6px;font-size:22px" placeholder="••••" autocomplete="off">
-    </div>
+      <input type="password" id="pinOld" class="fi2" maxlength="6" inputmode="numeric" style="text-align:center;letter-spacing:6px;font-size:22px" placeholder="••••" autocomplete="off"></div>
     <div class="fg"><label>Neue PIN</label>
-      <input type="password" id="pinNew1" class="fi2" maxlength="6" inputmode="numeric"
-        style="text-align:center;letter-spacing:6px;font-size:22px" placeholder="••••" autocomplete="off">
-    </div>
+      <input type="password" id="pinNew1" class="fi2" maxlength="6" inputmode="numeric" style="text-align:center;letter-spacing:6px;font-size:22px" placeholder="••••" autocomplete="off"></div>
     <div class="fg"><label>Neue PIN wiederholen</label>
-      <input type="password" id="pinNew2" class="fi2" maxlength="6" inputmode="numeric"
-        style="text-align:center;letter-spacing:6px;font-size:22px" placeholder="••••" autocomplete="off">
-    </div>
+      <input type="password" id="pinNew2" class="fi2" maxlength="6" inputmode="numeric" style="text-align:center;letter-spacing:6px;font-size:22px" placeholder="••••" autocomplete="off"></div>
     <div class="mbtns" style="margin-top:12px">
       <button class="btn btn-accent" style="flex:1" onclick="savePinChange()">💾 Speichern</button>
       <button class="btn btn-surface" onclick="closePinModal()">Abbrechen</button>
@@ -892,19 +882,19 @@ select.fi2{appearance:none}
   </div>
 </div>
 
-<!-- BARCODE GENERATOR MODAL -->
+<!-- BARCODE MODAL -->
 <div class="overlay" id="barcodeModal" onclick="if(event.target===this)closeBarcodeModal()">
   <div class="modal" style="max-width:340px;text-align:center">
     <h2 style="font-family:'Bebas Neue',sans-serif;letter-spacing:2px;font-size:22px">🔢 Interner Barcode</h2>
     <p id="barcodeModalName" style="font-size:14px;font-weight:600;margin-bottom:4px;color:var(--text)"></p>
-    <p style="font-size:12px;color:var(--muted);margin-bottom:16px">Interner EAN-13 Code (beginnt mit 200)</p>
-    <div style="background:#fff;padding:16px;border-radius:var(--r);border:1px solid var(--border);margin-bottom:16px;display:inline-block;width:100%">
+    <p style="font-size:12px;color:var(--muted);margin-bottom:16px">Interner EAN-13 Code</p>
+    <div style="background:#fff;padding:16px;border-radius:var(--r);border:1px solid var(--border);margin-bottom:16px;width:100%;box-sizing:border-box">
       <svg id="barcodeDisplay"></svg>
       <div id="barcodeNumber" style="font-family:monospace;font-size:13px;color:#333;margin-top:6px;letter-spacing:2px"></div>
     </div>
     <div style="display:flex;flex-direction:column;gap:8px">
       <button class="btn btn-accent" onclick="shareBarcodeImage()">📤 Als Bild teilen</button>
-      <button class="btn btn-accent" onclick="printBarcode()">🖨️ Drucken / Als PDF</button>
+      <button class="btn btn-accent" onclick="printBarcode()">🖨️ Drucken / PDF</button>
       <button class="btn btn-surface" onclick="closeBarcodeModal()">Schließen</button>
     </div>
   </div>
@@ -981,80 +971,7 @@ select.fi2{appearance:none}
   </div>
 </div>
 
-<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>
-<script>
-// ── LOGIN FUNKTIONEN (außerhalb module für onclick-Zugriff) ──────────────────
-function showLoginErr(msg) {
-  const e = document.getElementById('loginErr');
-  e.textContent = msg;
-  setTimeout(() => e.textContent = '', 3000);
-}
-
-function loginStep2() {
-  const k = document.getElementById('userKuerzel').value.trim().toUpperCase();
-  if (k.length !== 3) { showLoginErr('Bitte genau 3 Buchstaben eingeben'); return; }
-  const stored = JSON.parse(localStorage.getItem('balloni_users') || '{}');
-  const DEFAULT = { ADM: { pin:'1209', role:'admin' } };
-  const users = Object.assign({}, DEFAULT, stored);
-  if (!users[k]) { showLoginErr('Benutzer "' + k + '" nicht gefunden'); return; }
-  document.getElementById('loginStep1').style.display = 'none';
-  document.getElementById('loginStep2').style.display = 'block';
-  document.getElementById('loginUserShow').textContent = k;
-  document.getElementById('userPin').value = '';
-  onPinInput();
-  setTimeout(() => document.getElementById('userPin').focus(), 150);
-}
-
-function loginStep3() {
-  const k   = document.getElementById('userKuerzel').value.trim().toUpperCase();
-  const pin = document.getElementById('userPin').value.trim();
-  const stored = JSON.parse(localStorage.getItem('balloni_users') || '{}');
-  const DEFAULT = { ADM: { pin:'1209', role:'admin' } };
-  const users = Object.assign({}, DEFAULT, stored);
-  if (!users[k] || users[k].pin !== pin) {
-    showLoginErr('Falsche PIN – bitte nochmal versuchen');
-    document.getElementById('userPin').value = '';
-    onPinInput();
-    document.getElementById('userPin').focus();
-    return;
-  }
-  // Login erfolgreich – warte auf module script
-  const session = { kuerzel: k, role: users[k].role || (k==='ADM'?'admin':'user') };
-  localStorage.setItem('balloni_session', JSON.stringify(session));
-  window.location.reload(); // Seite neu laden – module script übernimmt
-}
-
-function onPinInput() {
-  const val  = document.getElementById('userPin').value;
-  const dots = document.getElementById('pinDots');
-  if (val.length === 0) {
-    dots.innerHTML = '<span style="color:var(--muted);font-size:14px">PIN eingeben…</span>';
-    dots.style.borderColor = 'var(--border)';
-  } else {
-    dots.innerHTML = val.split('').map(() =>
-      '<span style="width:14px;height:14px;background:var(--text);border-radius:50%;display:inline-block"></span>'
-    ).join('');
-    dots.style.borderColor = 'var(--accent)';
-  }
-}
-
-function backToStep1() {
-  document.getElementById('loginStep2').style.display = 'none';
-  document.getElementById('loginStep1').style.display = 'block';
-  document.getElementById('userKuerzel').value = '';
-  document.getElementById('loginErr').textContent = '';
-  setTimeout(() => document.getElementById('userKuerzel').focus(), 100);
-}
-
-document.addEventListener('DOMContentLoaded', function() {
-  const kEl = document.getElementById('userKuerzel');
-  const pEl = document.getElementById('userPin');
-  if (kEl) kEl.addEventListener('keydown', function(e) { if(e.key==='Enter') loginStep2(); });
-  if (pEl) pEl.addEventListener('keydown', function(e) { if(e.key==='Enter') loginStep3(); });
-});
-</script>
-
-<script type="module">
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script type="module">
 
 // ── MHD MONATSFARBEN ──────────────────────────────────────────────────────────
 const MHD_FARBEN = [
@@ -1235,9 +1152,9 @@ function renderList() {
       if (aNext && !bNext) return -1;
       if (!aNext && bNext) return 1;
       if (aNext && bNext && aNext !== bNext) return aNext < bNext ? -1 : 1;
-      const aLow = a.kaesten < (a.minBestand||0) ? 0 : 1;
-      const bLow = b.kaesten < (b.minBestand||0) ? 0 : 1;
-      if (aLow !== bLow) return aLow - bLow;
+      const aLow = a.kaesten<(a.minBestand||0)?0:1;
+      const bLow = b.kaesten<(b.minBestand||0)?0:1;
+      if (aLow!==bLow) return aLow-bLow;
       return (a.name||'').localeCompare(b.name||'');
     });
 
@@ -2269,7 +2186,7 @@ window.switchView = function(v) {
   if (v==='Artikel') { renderArtikel(); }
   if (v==='Inventur') { renderInventur(); }
   if (v==='Bestellung') renderBestellung();
-  // Dashboard wird unten gerendert
+  if (v==='Dashboard') renderDashboard();
   if (v==='History') renderHistory();
 };
 
@@ -2621,6 +2538,54 @@ function saveUsers(u) {
   }
 }
 
+// Login Step 1 – Kürzel eingeben
+window.loginStep2 = function() {
+  const k = document.getElementById('userKuerzel').value.trim().toUpperCase();
+  if (k.length !== 3) { showLoginErr('Bitte genau 3 Buchstaben eingeben'); return; }
+  appUsers = getUsers();
+  if (!appUsers[k]) { showLoginErr('Benutzer "' + k + '" nicht gefunden'); return; }
+  document.getElementById('loginStep1').style.display = 'none';
+  document.getElementById('loginStep2').style.display = 'block';
+  document.getElementById('loginUserShow').textContent = k;
+  document.getElementById('userPin').value = '';
+  onPinInput();
+  setTimeout(() => document.getElementById('userPin').focus(), 150);
+};
+document.getElementById('userKuerzel').addEventListener('keydown', e => { if(e.key==='Enter') loginStep2(); });
+
+// Login Step 2 – PIN eingeben
+window.loginStep3 = function() {
+  const k   = document.getElementById('userKuerzel').value.trim().toUpperCase();
+  const pin = document.getElementById('userPin').value.trim();
+  appUsers = getUsers();
+  if (!appUsers[k] || appUsers[k].pin !== pin) {
+    showLoginErr('Falsche PIN – bitte nochmal versuchen');
+    document.getElementById('userPin').value = '';
+    onPinInput();
+    document.getElementById('userPin').focus();
+    return;
+  }
+  currentUser = { kuerzel: k, role: appUsers[k].role || (k === 'ADM' ? 'admin' : 'user') };
+  localStorage.setItem('balloni_session', JSON.stringify(currentUser));
+  document.getElementById('loginScreen').classList.add('hidden');
+  document.getElementById('userBadge').textContent = k;
+  startApp();
+};
+document.getElementById('userPin').addEventListener('keydown', e => { if(e.key==='Enter') loginStep3(); });
+
+window.backToStep1 = function() {
+  document.getElementById('loginStep2').style.display = 'none';
+  document.getElementById('loginStep1').style.display = 'block';
+  document.getElementById('userKuerzel').value = '';
+  document.getElementById('loginErr').textContent = '';
+  setTimeout(() => document.getElementById('userKuerzel').focus(), 100);
+};
+
+function showLoginErr(msg) {
+  const e = document.getElementById('loginErr');
+  e.textContent = msg;
+  setTimeout(() => e.textContent = '', 3000);
+}
 
 // ── BENUTZERVERWALTUNG ────────────────────────────────────────────────────────
 window.logoutUser = function() {
@@ -2715,8 +2680,8 @@ window.savePinChange = function() {
   const old  = document.getElementById('pinOld').value.trim();
   const new1 = document.getElementById('pinNew1').value.trim();
   const new2 = document.getElementById('pinNew2').value.trim();
-  if (!/^[0-9]{4,6}$/.test(old))  { toast('Aktuelle PIN: 4–6 Ziffern', 'e'); return; }
-  if (!/^[0-9]{4,6}$/.test(new1)) { toast('Neue PIN: 4–6 Ziffern', 'e'); return; }
+  if (!/^[0-9]{4,6}$/.test(old))  { toast('Aktuelle PIN: 4-6 Ziffern', 'e'); return; }
+  if (!/^[0-9]{4,6}$/.test(new1)) { toast('Neue PIN: 4-6 Ziffern', 'e'); return; }
   if (new1 !== new2)               { toast('Neue PINs stimmen nicht überein', 'e'); return; }
   appUsers = getUsers();
   if (appUsers[currentUser.kuerzel]?.pin !== old) { toast('Falsche PIN', 'e'); return; }
@@ -2746,8 +2711,8 @@ window.openBarcodeModal = function(productId) {
   document.getElementById('barcodeModalName').textContent = p.name;
   document.getElementById('barcodeNumber').textContent = ean;
   try {
-    JsBarcode('#barcodeDisplay', ean, { format:'EAN13', width:2.5, height:80, displayValue:true, fontSize:14, margin:8, background:'#ffffff', lineColor:'#000000' });
-  } catch(e) {}
+    JsBarcode('#barcodeDisplay', ean, {format:'EAN13',width:2.5,height:80,displayValue:true,fontSize:14,margin:8,background:'#ffffff',lineColor:'#000000'});
+  } catch(e) { console.warn('Barcode Fehler:', e); }
   window._bcEan = ean; window._bcId = productId; window._bcName = p.name;
   document.getElementById('barcodeModal').classList.add('open');
 };
@@ -2758,7 +2723,7 @@ window.generateAndShowBarcode = function() {
   else {
     const ean = generateInternalEAN(Date.now().toString());
     document.getElementById('fBc').value = ean;
-    toast('🔢 Barcode generiert – Artikel speichern nicht vergessen', 'i');
+    toast('🔢 Barcode generiert – speichern nicht vergessen', 'i');
   }
 };
 async function barcodeToCanvas() {
@@ -2774,9 +2739,9 @@ async function barcodeToCanvas() {
   return new Promise(resolve => {
     const img = new Image();
     img.onload = () => {
-      ctx.drawImage(img, 30, 36, 340, 140);
-      ctx.font = '12px Arial';
-      ctx.fillText('Drinkventory – Interner Code', 200, 200);
+      ctx.drawImage(img,30,36,340,140);
+      ctx.font='12px Arial';
+      ctx.fillText('Drinkventory',200,200);
       URL.revokeObjectURL(svgUrl);
       resolve(canvas);
     };
@@ -2787,37 +2752,46 @@ window.shareBarcodeImage = async function() {
   try {
     const canvas = await barcodeToCanvas();
     canvas.toBlob(async blob => {
-      const file = new File([blob], 'barcode_'+(window._bcEan||'')+'.png', {type:'image/png'});
+      const file = new File([blob],'barcode_'+(window._bcEan||'')+'.png',{type:'image/png'});
       if (navigator.share && navigator.canShare({files:[file]})) {
-        await navigator.share({files:[file], title:window._bcName});
+        await navigator.share({files:[file],title:window._bcName});
       } else {
         const a = document.createElement('a');
         a.href = canvas.toDataURL('image/png');
         a.download = 'barcode_'+(window._bcEan||'')+'.png';
         a.click();
       }
-    }, 'image/png');
+    },'image/png');
   } catch(e) { toast('Fehler beim Teilen','e'); }
 };
 window.printBarcode = async function() {
   const canvas = await barcodeToCanvas();
   const img = canvas.toDataURL('image/png');
   const win = window.open('','_blank');
-  win.document.write('<!DOCTYPE html><html><head><title>'+window._bcName+'</title>'
+  win.document.write('<!DOCTYPE html><html><head><title>'+(window._bcName||'Barcode')+'</title>'
     +'<style>body{font-family:Arial,sans-serif;text-align:center;padding:20px}'
-    +'img{max-width:100%;width:320px}h2{font-size:18px;margin-bottom:8px}'
-    +'p{font-size:12px;color:#666;margin:4px 0}</style></head><body>'
-    +'<h2>'+window._bcName+'</h2>'
-    +'<img src="'+img+'" />'
-    +'<p>EAN-13: '+window._bcEan+'</p>'
-    +'<p>Drinkventory</p>'
+    +'img{max-width:100%;width:320px}h2{font-size:18px}p{font-size:12px;color:#666}</style></head><body>'
+    +'<h2>'+(window._bcName||'')+'</h2><img src="'+img+'" />'
+    +'<p>EAN-13: '+(window._bcEan||'')+'</p><p>Drinkventory</p>'
     +'<scr'+'ipt>window.onload=function(){window.print();}<'+'/script>'
     +'</body></html>');
   win.document.close();
 };
 
 // ── PIN MASKING ───────────────────────────────────────────────────────────────
-// onPinInput → separates Script
+window.onPinInput = function() {
+  const val  = document.getElementById('userPin').value;
+  const dots = document.getElementById('pinDots');
+  if (val.length === 0) {
+    dots.innerHTML = '<span style="color:var(--muted);font-size:14px">PIN eingeben…</span>';
+    dots.style.borderColor = 'var(--border)';
+  } else {
+    dots.innerHTML = val.split('').map(() =>
+      '<span style="width:14px;height:14px;background:var(--text);border-radius:50%;display:inline-block"></span>'
+    ).join('');
+    dots.style.borderColor = 'var(--accent)';
+  }
+};
 
 // ── DARK MODE ─────────────────────────────────────────────────────────────────
 window.toggleDark = function() {
@@ -2851,7 +2825,6 @@ window.renderDashboard = function() {
   const totalFassL  = prods.filter(p=>p.einheit==='fass').reduce((s,p)=>s+(p.kaesten||0)*(p.liter||0),0);
   const totalKarton = prods.filter(p=>p.einheit==='karton').reduce((s,p)=>s+(p.kaesten||0),0);
   const alarmCount  = prods.filter(p=>p.kaesten<(p.minBestand||0)).length;
-  const mhdAlarm    = prods.filter(p=>(p.mhdList||[]).some(d=>mhdStatus(d)?.color==='#ef4444')).length;
   const mhdAlarm    = prods.filter(p=>(p.mhdList||[]).some(d=>mhdStatus(d)?.color==='#ef4444')).length;
 
   document.getElementById('dashGrid').innerHTML = `
@@ -3010,5 +2983,6 @@ if (savedSession) {
   setTimeout(() => document.getElementById('userKuerzel').focus(), 100);
 }
 </script>
-</body>
-</html>
+<div class="overlay" id="dashPopup" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal" style="max-width:420px">
+    <h2 id="dashP
