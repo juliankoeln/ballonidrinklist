@@ -340,7 +340,6 @@ select.fi2{appearance:none}
 .best-name{font-size:13px;font-weight:600;color:var(--text)}
 .best-qty{font-size:11px;color:var(--muted);margin-top:2px}
 .best-del{background:#fdecea;color:var(--red);border:none;border-radius:8px;width:32px;height:32px;font-size:18px;cursor:pointer;flex-shrink:0}
-@media screen and (orientation:landscape){#loginWrap,main,header,nav{max-width:480px;margin-left:auto;margin-right:auto}}
 </style>
 </head>
 <body>
@@ -608,6 +607,7 @@ select.fi2{appearance:none}
     <div id="mhdHint" style="margin-top:6px;font-size:13px;display:none"></div>
   </div>
   <div class="act-row">
+    <button class="btn btn-surface btn-sm" id="barcodeFoundBtn" onclick="showBarcodeForCurrent()" style="padding:8px 12px">🔢</button>
     <button class="btn btn-green" id="eingangsBtn" onclick="handleEingang()">➕ Eingang</button>
     <button class="btn btn-red"   onclick="hideMhdRow(); applyChange(-1)">➖ Ausgang</button>
   </div>
@@ -953,7 +953,7 @@ select.fi2{appearance:none}
         <strong style="color:var(--text)">Claude</strong> · KI-Assistent von Anthropic
       </p>
       <p style="font-size:11px;color:var(--muted);margin-top:10px;letter-spacing:1px">
-        Version 0.91
+        Version 0.92
       </p>
     </div>
     <button class="btn btn-surface" style="width:100%;margin-top:16px" onclick="document.getElementById('impressumModal').classList.remove('open')">Schließen</button>
@@ -2704,6 +2704,11 @@ function generateInternalEAN(productId) {
   const d12 = '200'+base;
   return d12 + calcEAN13Check(d12);
 }
+window.showBarcodeForCurrent = function() {
+  if (currentId) openBarcodeModal(currentId);
+  else toast('Bitte zuerst Produkt scannen', 'e');
+};
+
 window.openBarcodeModal = function(productId) {
   const p = products[productId];
   if (!p) return;
