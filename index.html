@@ -981,7 +981,66 @@ select.fi2{appearance:none}
   </div>
 </div>
 
-<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script type="module">
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>
+<script>
+// ── LOGIN FUNKTIONEN (außerhalb module für onclick-Zugriff) ──────────────────
+function showLoginErr(msg) {
+  const e = document.getElementById('loginErr');
+  e.textContent = msg;
+  setTimeout(() => e.textContent = '', 3000);
+}
+
+function loginStep2() {
+  const k = document.getElementById('userKuerzel').value.trim().toUpperCase();
+  if (k.length !== 3) { showLoginErr('Bitte genau 3 Buchstaben eingeben'); return; }
+  const stored = JSON.parse(localStorage.getItem('balloni_users') || '{}');
+  const DEFAULT = { ADM: { pin:'1209', role:'admin' } };
+  const users = Object.assign({}, DEFAULT, stored);
+  if (!users[k]) { showLoginErr('Benutzer "' + k + '" nicht gefunden'); return; }
+  document.getElementById('loginStep1').style.display = 'none';
+  document.getElementById('loginStep2').style.display = 'block';
+  document.getElementById('loginUserShow').textContent = k;
+  document.getElementById('userPin').value = '';
+  if (typeof onPinInput === 'function') onPinInput();
+  setTimeout(() => document.getElementById('userPin').focus(), 150);
+}
+
+function loginStep3() {
+  const k   = document.getElementById('userKuerzel').value.trim().toUpperCase();
+  const pin = document.getElementById('userPin').value.trim();
+  const stored = JSON.parse(localStorage.getItem('balloni_users') || '{}');
+  const DEFAULT = { ADM: { pin:'1209', role:'admin' } };
+  const users = Object.assign({}, DEFAULT, stored);
+  if (!users[k] || users[k].pin !== pin) {
+    showLoginErr('Falsche PIN – bitte nochmal versuchen');
+    document.getElementById('userPin').value = '';
+    if (typeof onPinInput === 'function') onPinInput();
+    document.getElementById('userPin').focus();
+    return;
+  }
+  // Login erfolgreich – warte auf module script
+  const session = { kuerzel: k, role: users[k].role || (k==='ADM'?'admin':'user') };
+  localStorage.setItem('balloni_session', JSON.stringify(session));
+  window.location.reload(); // Seite neu laden – module script übernimmt
+}
+
+function backToStep1() {
+  document.getElementById('loginStep2').style.display = 'none';
+  document.getElementById('loginStep1').style.display = 'block';
+  document.getElementById('userKuerzel').value = '';
+  document.getElementById('loginErr').textContent = '';
+  setTimeout(() => document.getElementById('userKuerzel').focus(), 100);
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  const kEl = document.getElementById('userKuerzel');
+  const pEl = document.getElementById('userPin');
+  if (kEl) kEl.addEventListener('keydown', function(e) { if(e.key==='Enter') loginStep2(); });
+  if (pEl) pEl.addEventListener('keydown', function(e) { if(e.key==='Enter') loginStep3(); });
+});
+</script>
+
+<script type="module">
 
 // ── MHD MONATSFARBEN ──────────────────────────────────────────────────────────
 const MHD_FARBEN = [
@@ -2548,54 +2607,6 @@ function saveUsers(u) {
   }
 }
 
-// Login Step 1 – Kürzel eingeben
-window.loginStep2 = function() {
-  const k = document.getElementById('userKuerzel').value.trim().toUpperCase();
-  if (k.length !== 3) { showLoginErr('Bitte genau 3 Buchstaben eingeben'); return; }
-  appUsers = getUsers();
-  if (!appUsers[k]) { showLoginErr('Benutzer "' + k + '" nicht gefunden'); return; }
-  document.getElementById('loginStep1').style.display = 'none';
-  document.getElementById('loginStep2').style.display = 'block';
-  document.getElementById('loginUserShow').textContent = k;
-  document.getElementById('userPin').value = '';
-  onPinInput();
-  setTimeout(() => document.getElementById('userPin').focus(), 150);
-};
-document.getElementById('userKuerzel').addEventListener('keydown', e => { if(e.key==='Enter') loginStep2(); });
-
-// Login Step 2 – PIN eingeben
-window.loginStep3 = function() {
-  const k   = document.getElementById('userKuerzel').value.trim().toUpperCase();
-  const pin = document.getElementById('userPin').value.trim();
-  appUsers = getUsers();
-  if (!appUsers[k] || appUsers[k].pin !== pin) {
-    showLoginErr('Falsche PIN – bitte nochmal versuchen');
-    document.getElementById('userPin').value = '';
-    onPinInput();
-    document.getElementById('userPin').focus();
-    return;
-  }
-  currentUser = { kuerzel: k, role: appUsers[k].role || (k === 'ADM' ? 'admin' : 'user') };
-  localStorage.setItem('balloni_session', JSON.stringify(currentUser));
-  document.getElementById('loginScreen').classList.add('hidden');
-  document.getElementById('userBadge').textContent = k;
-  startApp();
-};
-document.getElementById('userPin').addEventListener('keydown', e => { if(e.key==='Enter') loginStep3(); });
-
-window.backToStep1 = function() {
-  document.getElementById('loginStep2').style.display = 'none';
-  document.getElementById('loginStep1').style.display = 'block';
-  document.getElementById('userKuerzel').value = '';
-  document.getElementById('loginErr').textContent = '';
-  setTimeout(() => document.getElementById('userKuerzel').focus(), 100);
-};
-
-function showLoginErr(msg) {
-  const e = document.getElementById('loginErr');
-  e.textContent = msg;
-  setTimeout(() => e.textContent = '', 3000);
-}
 
 // ── BENUTZERVERWALTUNG ────────────────────────────────────────────────────────
 window.logoutUser = function() {
@@ -2786,7 +2797,7 @@ window.printBarcode = async function() {
     +'<img src="'+img+'" />'
     +'<p>EAN-13: '+window._bcEan+'</p>'
     +'<p>Drinkventory</p>'
-    +'<script>window.onload=function(){window.print();}<'+'/script>'
+    +'<scr'+'ipt>window.onload=function(){window.print();}<'+'/script>'
     +'</body></html>');
   win.document.close();
 };
