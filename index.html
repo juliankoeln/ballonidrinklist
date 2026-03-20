@@ -567,6 +567,7 @@ select.fi2{appearance:none}
           <div>Flaschen: <strong id="fFl">0</strong></div>
         </div>
       </div>
+      <button onclick="openBarcodeModal(currentId)" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--muted);padding:4px;line-height:1" title="Barcode anzeigen/generieren">🔢</button>
       <button onclick="clearFoundCard()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted);padding:4px;line-height:1" title="Auswahl aufheben">✕</button>
     </div>
   </div>
@@ -952,7 +953,7 @@ select.fi2{appearance:none}
         <strong style="color:var(--text)">Claude</strong> · KI-Assistent von Anthropic
       </p>
       <p style="font-size:11px;color:var(--muted);margin-top:10px;letter-spacing:1px">
-        Version 0.93
+        Version 0.94
       </p>
     </div>
     <button class="btn btn-surface" style="width:100%;margin-top:16px" onclick="document.getElementById('impressumModal').classList.remove('open')">Schließen</button>
@@ -1376,6 +1377,7 @@ window.renderArtikel = function() {
       <div class="acard-btns">
         <button class="btn btn-accent btn-sm" style="flex:1" onclick="openAdd('${p.id}')">✏️ Bearbeiten</button>
         <button class="btn btn-surface btn-sm" onclick="selProdAndGo('${p.id}')">📦 Buchen</button>
+        <button class="btn btn-surface btn-sm" onclick="openBarcodeModal('${p.id}')" title="Barcode" style="${!p.barcode?'border-color:#f97316;color:#f97316':''}">🔢</button>
         <button class="btn btn-sm" style="background:#2a1414;color:var(--red)" onclick="openDelModal('${p.id}')">🗑️</button>
       </div>
     </div>`;
