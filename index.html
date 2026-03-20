@@ -858,6 +858,16 @@ select.fi2{appearance:none}
 </div>
 
 
+
+<!-- DASHBOARD POPUP -->
+<div class="overlay" id="dashPopup" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal" style="max-width:420px">
+    <h2 id="dashPopupTitle" style="font-family:'Bebas Neue',sans-serif;letter-spacing:2px;font-size:22px;margin-bottom:14px"></h2>
+    <div id="dashPopupList"></div>
+    <button class="btn btn-surface" style="width:100%;margin-top:14px" onclick="document.getElementById('dashPopup').classList.remove('open')">Schließen</button>
+  </div>
+</div>
+
 <!-- PIN ÄNDERN MODAL -->
 <div class="overlay" id="pinModal" onclick="if(event.target===this)closePinModal()">
   <div class="modal" style="max-width:320px">
@@ -2987,11 +2997,5 @@ if (savedSession) {
   setTimeout(() => document.getElementById('userKuerzel').focus(), 100);
 }
 </script>
-<div class="overlay" id="dashPopup" onclick="if(event.target===this)this.classList.remove('open')">
-  <div class="modal" style="max-width:420px">
-    <h2 id="dashPopupTitle" style="font-family:'Bebas Neue',sans-serif;letter-spacing:2px;font-size:22px;margin-bottom:14px"></h2>
-    <div id="dashPopupList"></div>
-    <button class="btn btn-surface" style="width:100%;margin-top:14px" onclick="document.getElementById('dashPopup').classList.remove('open')">Schließen</button>
-  </div>
-</div>
-<!-- DASHPOPUP_END -->
+</body>
+</html>
