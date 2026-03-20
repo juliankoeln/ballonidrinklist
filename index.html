@@ -1001,7 +1001,7 @@ function loginStep2() {
   document.getElementById('loginStep2').style.display = 'block';
   document.getElementById('loginUserShow').textContent = k;
   document.getElementById('userPin').value = '';
-  if (typeof onPinInput === 'function') onPinInput();
+  onPinInput();
   setTimeout(() => document.getElementById('userPin').focus(), 150);
 }
 
@@ -1014,7 +1014,7 @@ function loginStep3() {
   if (!users[k] || users[k].pin !== pin) {
     showLoginErr('Falsche PIN – bitte nochmal versuchen');
     document.getElementById('userPin').value = '';
-    if (typeof onPinInput === 'function') onPinInput();
+    onPinInput();
     document.getElementById('userPin').focus();
     return;
   }
@@ -1022,6 +1022,20 @@ function loginStep3() {
   const session = { kuerzel: k, role: users[k].role || (k==='ADM'?'admin':'user') };
   localStorage.setItem('balloni_session', JSON.stringify(session));
   window.location.reload(); // Seite neu laden – module script übernimmt
+}
+
+function onPinInput() {
+  const val  = document.getElementById('userPin').value;
+  const dots = document.getElementById('pinDots');
+  if (val.length === 0) {
+    dots.innerHTML = '<span style="color:var(--muted);font-size:14px">PIN eingeben…</span>';
+    dots.style.borderColor = 'var(--border)';
+  } else {
+    dots.innerHTML = val.split('').map(() =>
+      '<span style="width:14px;height:14px;background:var(--text);border-radius:50%;display:inline-block"></span>'
+    ).join('');
+    dots.style.borderColor = 'var(--accent)';
+  }
 }
 
 function backToStep1() {
@@ -2803,19 +2817,7 @@ window.printBarcode = async function() {
 };
 
 // ── PIN MASKING ───────────────────────────────────────────────────────────────
-window.onPinInput = function() {
-  const val  = document.getElementById('userPin').value;
-  const dots = document.getElementById('pinDots');
-  if (val.length === 0) {
-    dots.innerHTML = '<span style="color:var(--muted);font-size:14px">PIN eingeben…</span>';
-    dots.style.borderColor = 'var(--border)';
-  } else {
-    dots.innerHTML = val.split('').map(() =>
-      '<span style="width:14px;height:14px;background:var(--text);border-radius:50%;display:inline-block"></span>'
-    ).join('');
-    dots.style.borderColor = 'var(--accent)';
-  }
-};
+// onPinInput → separates Script
 
 // ── DARK MODE ─────────────────────────────────────────────────────────────────
 window.toggleDark = function() {
