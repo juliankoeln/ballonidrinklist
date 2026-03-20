@@ -26,15 +26,8 @@ window.addEventListener('offline', () => {
 </script>
 
 <script>
-// Globaler Fehler-Handler – verhindert App-Absturz
-window.addEventListener('error', function(e) {
-  console.warn('App-Fehler abgefangen:', e.message);
-  return true; // Fehler nicht weiterwerfen
-});
-window.addEventListener('unhandledrejection', function(e) {
-  console.warn('Promise-Fehler abgefangen:', e.reason);
-  e.preventDefault(); // Verhindert Absturz
-});
+window.addEventListener('error', function(e) { console.warn('Fehler:', e.message); return true; });
+window.addEventListener('unhandledrejection', function(e) { console.warn('Promise-Fehler:', e.reason); e.preventDefault(); });
 </script>
 
 <script type="module">
@@ -348,13 +341,8 @@ select.fi2{appearance:none}
 .best-name{font-size:13px;font-weight:600;color:var(--text)}
 .best-qty{font-size:11px;color:var(--muted);margin-top:2px}
 .best-del{background:#fdecea;color:var(--red);border:none;border-radius:8px;width:32px;height:32px;font-size:18px;cursor:pointer;flex-shrink:0}
-/* Portrait-Modus erzwingen */
 @media screen and (orientation: landscape) {
-  #loginWrap, main, header, nav {
-    max-width: 480px;
-    margin-left: auto;
-    margin-right: auto;
-  }
+  #loginWrap, main, header, nav { max-width:480px; margin-left:auto; margin-right:auto; }
 }
 </style>
 </head>
@@ -894,21 +882,16 @@ select.fi2{appearance:none}
   </div>
 </div>
 
-
 <!-- BARCODE GENERATOR MODAL -->
 <div class="overlay" id="barcodeModal" onclick="if(event.target===this)closeBarcodeModal()">
   <div class="modal" style="max-width:340px;text-align:center">
     <h2 style="font-family:'Bebas Neue',sans-serif;letter-spacing:2px;font-size:22px">🔢 Interner Barcode</h2>
     <p id="barcodeModalName" style="font-size:14px;font-weight:600;margin-bottom:4px;color:var(--text)"></p>
     <p style="font-size:12px;color:var(--muted);margin-bottom:16px">Interner EAN-13 Code (beginnt mit 200)</p>
-
-    <!-- Barcode Anzeige -->
     <div style="background:#fff;padding:16px;border-radius:var(--r);border:1px solid var(--border);margin-bottom:16px;display:inline-block;width:100%">
       <svg id="barcodeDisplay"></svg>
       <div id="barcodeNumber" style="font-family:monospace;font-size:13px;color:#333;margin-top:6px;letter-spacing:2px"></div>
     </div>
-
-    <!-- Buttons -->
     <div style="display:flex;flex-direction:column;gap:8px">
       <button class="btn btn-accent" onclick="shareBarcodeImage()">📤 Als Bild teilen</button>
       <button class="btn btn-accent" onclick="printBarcode()">🖨️ Drucken / Als PDF</button>
@@ -1164,19 +1147,14 @@ function renderList() {
     .map(([id,p])=>({id,...p}))
     .filter(p => p.name?.toLowerCase().includes(q) || (p.barcode||'').includes(q) || (p.kategorie||'').toLowerCase().includes(q) || (p.marke||'').toLowerCase().includes(q))
     .sort((a,b) => {
-      // Nächstes MHD Datum (frühestes zuerst)
       const aNext = (a.mhdList||[]).slice().sort()[0];
       const bNext = (b.mhdList||[]).slice().sort()[0];
-      // Artikel mit MHD vor Artikel ohne MHD
       if (aNext && !bNext) return -1;
       if (!aNext && bNext) return 1;
-      // Beide haben MHD – früheres zuerst
       if (aNext && bNext && aNext !== bNext) return aNext < bNext ? -1 : 1;
-      // Mindestbestand-Alarm
       const aLow = a.kaesten < (a.minBestand||0) ? 0 : 1;
       const bLow = b.kaesten < (b.minBestand||0) ? 0 : 1;
       if (aLow !== bLow) return aLow - bLow;
-      // Alphabetisch
       return (a.name||'').localeCompare(b.name||'');
     });
 
@@ -1301,15 +1279,10 @@ window.showDashPopup = function(type) {
           const f = mhdFarbe(m-1);
           return `<span style="display:inline-flex;align-items:center;gap:4px;background:${st?.bg||'#f0fdf4'};color:${st?.color||'#22c55e'};border-radius:12px;padding:2px 8px;font-size:11px;font-weight:600;margin:2px">
             <span style="width:10px;height:10px;border-radius:50%;background:${f.farbe};display:inline-block;border:1px solid rgba(0,0,0,.15)"></span>
-            ${f.monat.slice(0,3)} ${y}
+            ${f.monat.slice(0,3)} ${y} &nbsp;<button onclick="removeMhd('${p.id||Object.keys(products).find(k=>products[k]===p)}','${d}')" style="background:none;border:none;cursor:pointer;color:#999;font-size:11px;padding:0;line-height:1">✕</button>
           </span>`;
         }).join('');
-        return `<div class="dash-top-item">
-          <div style="flex:1">
-            <div style="font-size:13px;font-weight:600;margin-bottom:4px">${p.name}</div>
-            <div>${dates}</div>
-          </div>
-        </div>`;
+        return { name:p.name, sub: dates };
       });
   } else if (type === 'fass') {
     title = '🛢️ Fässer';
@@ -2209,11 +2182,12 @@ window.switchView = function(v) {
   document.getElementById('n'+v).classList.add('active');
   document.querySelector('.fab').style.display = (v==='History'||v==='Bestellung'||v==='Inventur'||v==='Dashboard')?'none':'flex';
   document.getElementById('scanStrip').style.display = v==='Lager'?'block':'none';
-  if (v==='Artikel')    { renderArtikel(); }
-  if (v==='Inventur')   { renderInventur(); }
-  if (v==='Bestellung') { renderBestellung(); }
-  if (v==='Dashboard')  { renderDashboard(); }
-  if (v==='History')    { renderHistory(); }
+  document.querySelector('.fab').style.display = (v==='History'||v==='Bestellung'||v==='Inventur')?'none':'flex';
+  if (v==='Artikel') { renderArtikel(); }
+  if (v==='Inventur') { renderInventur(); }
+  if (v==='Bestellung') renderBestellung();
+  // Dashboard wird unten gerendert
+  if (v==='History') renderHistory();
 };
 
 // ── EXCEL EXPORT ──────────────────────────────────────────────────────────────
@@ -2649,10 +2623,7 @@ function renderUserList() {
         <div style="font-size:13px;font-weight:600;color:var(--text)">${u.name||'<span style="color:var(--muted);font-style:italic">kein Name</span>'}</div>
         <div style="font-size:11px;color:var(--muted);margin-top:1px">${u.role==='admin'?'⭐ Admin':'Mitarbeiter'}</div>
       </div>
-      <div style="display:flex;gap:6px;flex-shrink:0">
-        <button onclick="openPinModalFor('${k}')" style="background:#e8f4fd;color:#1a6fa8;border:1px solid #b3d7f0;border-radius:8px;padding:4px 10px;font-size:12px;cursor:pointer">🔑 PIN</button>
-        ${k==='ADM'?'':`<button onclick="deleteUser('${k}')" style="background:#fdecea;color:var(--red);border:1px solid #f5c6c3;border-radius:8px;padding:4px 10px;font-size:12px;cursor:pointer">Löschen</button>`}
-      </div>
+      <div style="display:flex;gap:6px;flex-shrink:0"><button onclick="openPinModalFor('${k}')" style="background:#e8f4fd;color:#1a6fa8;border:1px solid #b3d7f0;border-radius:8px;padding:4px 10px;font-size:12px;cursor:pointer">🔑</button>${k==='ADM'?'':`<button onclick="deleteUser('${k}')" style="background:#fdecea;color:var(--red);border:1px solid #f5c6c3;border-radius:8px;padding:4px 10px;font-size:12px;cursor:pointer">Löschen</button>`}</div>
     </div>`).join('');
 }
 
@@ -2684,23 +2655,20 @@ window.deleteUser = function(k) {
 };
 
 
+
 // ── PIN ÄNDERN ────────────────────────────────────────────────────────────────
 let pinModalTarget = null;
 window.openPinModal = function() {
   pinModalTarget = currentUser.kuerzel;
   document.getElementById('pinOldLabel').textContent = 'Aktuelle PIN';
-  document.getElementById('pinOld').value = '';
-  document.getElementById('pinNew1').value = '';
-  document.getElementById('pinNew2').value = '';
+  ['pinOld','pinNew1','pinNew2'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('pinModal').classList.add('open');
   setTimeout(() => document.getElementById('pinOld').focus(), 200);
 };
 window.openPinModalFor = function(k) {
   pinModalTarget = k;
-  document.getElementById('pinOldLabel').textContent = k === currentUser.kuerzel ? 'Aktuelle PIN' : 'Deine Admin-PIN zur Bestätigung';
-  document.getElementById('pinOld').value = '';
-  document.getElementById('pinNew1').value = '';
-  document.getElementById('pinNew2').value = '';
+  document.getElementById('pinOldLabel').textContent = k === currentUser.kuerzel ? 'Aktuelle PIN' : 'Deine Admin-PIN';
+  ['pinOld','pinNew1','pinNew2'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('pinModal').classList.add('open');
   setTimeout(() => document.getElementById('pinOld').focus(), 200);
 };
@@ -2716,174 +2684,100 @@ window.savePinChange = function() {
   if (!/^[0-9]{4,6}$/.test(new1)) { toast('Neue PIN: 4–6 Ziffern', 'e'); return; }
   if (new1 !== new2)               { toast('Neue PINs stimmen nicht überein', 'e'); return; }
   appUsers = getUsers();
-  if (appUsers[currentUser.kuerzel]?.pin !== old) { toast('Falsche PIN – bitte nochmal', 'e'); return; }
+  if (appUsers[currentUser.kuerzel]?.pin !== old) { toast('Falsche PIN', 'e'); return; }
   appUsers[pinModalTarget].pin = new1;
   saveUsers(appUsers);
   closePinModal();
-  toast('✅ PIN erfolgreich geändert', 's');
+  toast('✅ PIN geändert', 's');
   renderUserList();
 };
 window.logoutFromAdmin = function() { closeUserMgmt(); logoutUser(); };
 
-
-// ── BARCODE GENERATOR ────────────────────────────────────────────────────────
-function calcEAN13Check(digits12) {
-  // Prüfziffer berechnen
-  let sum = 0;
-  for (let i = 0; i < 12; i++) {
-    sum += parseInt(digits12[i]) * (i % 2 === 0 ? 1 : 3);
-  }
-  return (10 - (sum % 10)) % 10;
+// ── BARCODE GENERATOR ─────────────────────────────────────────────────────────
+function calcEAN13Check(d12) {
+  let s = 0;
+  for (let i = 0; i < 12; i++) s += parseInt(d12[i]) * (i%2===0?1:3);
+  return (10-(s%10))%10;
 }
-
 function generateInternalEAN(productId) {
-  // Interne EAN: 200 + 9 Ziffern aus Product-ID + Prüfziffer
-  const base = productId.replace(/\D/g, '').padStart(9, '0').slice(-9);
-  const digits12 = '200' + base;
-  const check = calcEAN13Check(digits12);
-  return digits12 + check;
+  const base = productId.replace(/\D/g,'').padStart(9,'0').slice(-9);
+  const d12 = '200'+base;
+  return d12 + calcEAN13Check(d12);
 }
-
 window.openBarcodeModal = function(productId) {
   const p = products[productId];
   if (!p) return;
-
-  // EAN generieren oder bestehenden nutzen
-  let ean = p.barcode && /^200\d{10}$/.test(p.barcode) ? p.barcode : null;
-  if (!ean) {
-    ean = generateInternalEAN(productId);
-  }
-
+  const ean = (p.barcode && /^200\d{10}$/.test(p.barcode)) ? p.barcode : generateInternalEAN(productId);
   document.getElementById('barcodeModalName').textContent = p.name;
   document.getElementById('barcodeNumber').textContent = ean;
-
-  // JsBarcode rendern
   try {
-    JsBarcode('#barcodeDisplay', ean, {
-      format: 'EAN13',
-      width: 2.5,
-      height: 80,
-      displayValue: true,
-      fontSize: 14,
-      margin: 8,
-      background: '#ffffff',
-      lineColor: '#000000'
-    });
-  } catch(e) {
-    document.getElementById('barcodeDisplay').innerHTML = '<text>Fehler beim Generieren</text>';
-  }
-
-  window._currentBarcodeEan  = ean;
-  window._currentBarcodeId   = productId;
-  window._currentBarcodeName = p.name;
+    JsBarcode('#barcodeDisplay', ean, { format:'EAN13', width:2.5, height:80, displayValue:true, fontSize:14, margin:8, background:'#ffffff', lineColor:'#000000' });
+  } catch(e) {}
+  window._bcEan = ean; window._bcId = productId; window._bcName = p.name;
   document.getElementById('barcodeModal').classList.add('open');
 };
-
+window.closeBarcodeModal = function() { document.getElementById('barcodeModal').classList.remove('open'); };
 window.generateAndShowBarcode = function() {
   const id = document.getElementById('eId').value;
-  if (id && products[id]) {
-    openBarcodeModal(id);
-  } else {
-    // Neuer Artikel – temporären EAN generieren
-    const tempId = Date.now().toString();
-    const ean = generateInternalEAN(tempId);
+  if (id && products[id]) { openBarcodeModal(id); }
+  else {
+    const ean = generateInternalEAN(Date.now().toString());
     document.getElementById('fBc').value = ean;
-    toast('🔢 Barcode generiert – bitte Artikel speichern', 'i');
+    toast('🔢 Barcode generiert – Artikel speichern nicht vergessen', 'i');
   }
 };
-
-window.closeBarcodeModal = function() {
-  document.getElementById('barcodeModal').classList.remove('open');
-};
-
-window.saveBarcodeToProduct = async function() {
-  const id  = window._currentBarcodeId;
-  const ean = window._currentBarcodeEan;
-  if (!id || !ean) return;
-  await fbUpdate('products/' + id, { barcode: ean });
-  toast('✅ Barcode gespeichert', 's');
-};
-
-function barcodeToCanvas() {
-  // SVG → Canvas → PNG
+async function barcodeToCanvas() {
   const svg = document.getElementById('barcodeDisplay');
-  const name = window._currentBarcodeName || 'Barcode';
-  const ean  = window._currentBarcodeEan  || '';
-
   const canvas = document.createElement('canvas');
-  canvas.width  = 400;
-  canvas.height = 220;
+  canvas.width = 400; canvas.height = 220;
   const ctx = canvas.getContext('2d');
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  // Artikelname oben
-  ctx.fillStyle = '#000000';
-  ctx.font = 'bold 16px Arial';
-  ctx.textAlign = 'center';
-  ctx.fillText(name, canvas.width / 2, 24);
-
-  // SVG als Bild einbetten
+  ctx.fillStyle = '#fff'; ctx.fillRect(0,0,400,220);
+  ctx.fillStyle = '#000'; ctx.font = 'bold 16px Arial'; ctx.textAlign = 'center';
+  ctx.fillText(window._bcName||'', 200, 24);
   const svgData = new XMLSerializer().serializeToString(svg);
-  const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
-  const svgUrl  = URL.createObjectURL(svgBlob);
-
-  return new Promise((resolve) => {
+  const svgUrl = URL.createObjectURL(new Blob([svgData],{type:'image/svg+xml'}));
+  return new Promise(resolve => {
     const img = new Image();
     img.onload = () => {
       ctx.drawImage(img, 30, 36, 340, 140);
-      ctx.font = '13px monospace';
-      ctx.fillText('Drinkventory – Interner Code', canvas.width / 2, 200);
+      ctx.font = '12px Arial';
+      ctx.fillText('Drinkventory – Interner Code', 200, 200);
       URL.revokeObjectURL(svgUrl);
       resolve(canvas);
     };
     img.src = svgUrl;
   });
 }
-
 window.shareBarcodeImage = async function() {
   try {
     const canvas = await barcodeToCanvas();
-    canvas.toBlob(async (blob) => {
-      const file = new File([blob], 'barcode_' + (window._currentBarcodeEan||'') + '.png', { type: 'image/png' });
-      if (navigator.share && navigator.canShare({ files: [file] })) {
-        await navigator.share({ files: [file], title: window._currentBarcodeName });
+    canvas.toBlob(async blob => {
+      const file = new File([blob], 'barcode_'+(window._bcEan||'')+'.png', {type:'image/png'});
+      if (navigator.share && navigator.canShare({files:[file]})) {
+        await navigator.share({files:[file], title:window._bcName});
       } else {
-        // Fallback: direkt herunterladen
         const a = document.createElement('a');
         a.href = canvas.toDataURL('image/png');
-        a.download = 'barcode_' + (window._currentBarcodeEan||'') + '.png';
+        a.download = 'barcode_'+(window._bcEan||'')+'.png';
         a.click();
       }
     }, 'image/png');
   } catch(e) { toast('Fehler beim Teilen','e'); }
 };
-
 window.printBarcode = async function() {
   const canvas = await barcodeToCanvas();
   const img = canvas.toDataURL('image/png');
-  const win = window.open('', '_blank');
-  win.document.write(`
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <title>${window._currentBarcodeName} – Barcode</title>
-      <style>
-        body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
-        img  { max-width: 100%; width: 320px; }
-        h2   { font-size: 18px; margin-bottom: 8px; }
-        p    { font-size: 12px; color: #666; margin: 4px 0; }
-      </style>
-    </head>
-    <body>
-      <h2>${window._currentBarcodeName}</h2>
-      <img src="${img}" />
-      <p>Interner EAN-13: ${window._currentBarcodeEan}</p>
-      <p>Drinkventory</p>
-      <script>window.onload = () => { window.print(); }</script>
-    </body>
-    </html>
-  `);
+  const win = window.open('','_blank');
+  win.document.write('<!DOCTYPE html><html><head><title>'+window._bcName+'</title>'
+    +'<style>body{font-family:Arial,sans-serif;text-align:center;padding:20px}'
+    +'img{max-width:100%;width:320px}h2{font-size:18px;margin-bottom:8px}'
+    +'p{font-size:12px;color:#666;margin:4px 0}</style></head><body>'
+    +'<h2>'+window._bcName+'</h2>'
+    +'<img src="'+img+'" />'
+    +'<p>EAN-13: '+window._bcEan+'</p>'
+    +'<p>Drinkventory</p>'
+    +'<script>window.onload=function(){window.print();}<'+'/script>'
+    +'</body></html>');
   win.document.close();
 };
 
@@ -2934,6 +2828,7 @@ window.renderDashboard = function() {
   const totalFassL  = prods.filter(p=>p.einheit==='fass').reduce((s,p)=>s+(p.kaesten||0)*(p.liter||0),0);
   const totalKarton = prods.filter(p=>p.einheit==='karton').reduce((s,p)=>s+(p.kaesten||0),0);
   const alarmCount  = prods.filter(p=>p.kaesten<(p.minBestand||0)).length;
+  const mhdAlarm    = prods.filter(p=>(p.mhdList||[]).some(d=>mhdStatus(d)?.color==='#ef4444')).length;
   const mhdAlarm    = prods.filter(p=>(p.mhdList||[]).some(d=>mhdStatus(d)?.color==='#ef4444')).length;
 
   document.getElementById('dashGrid').innerHTML = `
@@ -3099,3 +2994,4 @@ if (savedSession) {
     <button class="btn btn-surface" style="width:100%;margin-top:14px" onclick="document.getElementById('dashPopup').classList.remove('open')">Schließen</button>
   </div>
 </div>
+<!-- DASHPOPUP_END -->
