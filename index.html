@@ -558,21 +558,7 @@ select.fi2{appearance:none}
 
 <!-- SCANNER STRIP -->
 <div id="scanStrip">
-  <div id="foundCard">
-    <div style="display:flex;align-items:center;gap:6px">
-      <div style="flex:1">
-        <div class="fn" id="fName">—</div>
-        <div class="fi">
-          <div id="fKstLabel">Kästen: <strong id="fKst">0</strong></div>
-          <div>Flaschen: <strong id="fFl">0</strong></div>
-        </div>
-      </div>
-      <button onclick="openBarcodeModal(currentId)" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--muted);padding:4px;line-height:1" title="Barcode anzeigen/generieren">🔢</button>
-      <button onclick="clearFoundCard()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted);padding:4px;line-height:1" title="Auswahl aufheben">✕</button>
-    </div>
-  </div>
-
-  <div style="display:flex;gap:8px;margin-bottom:6px">
+  <div style="display:flex;gap:8px">
     <input type="text" id="bIn" class="scan-in"
       placeholder="◉ Scanner-Feld – hier antippen"
       autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
@@ -580,36 +566,6 @@ select.fi2{appearance:none}
       style="flex:1;font-size:16px;padding:14px 12px;border:2px solid var(--accent);border-radius:var(--r);background:var(--surface);color:var(--text)">
     <button class="btn btn-blue" onclick="openCamera()" title="Kamera-Scanner">📷</button>
     <button class="btn btn-accent" onclick="doScan()">✓</button>
-  </div>
-
-
-  <div class="qty-grid">
-    <div class="qty-block">
-      <label id="qKLabel">Menge 1</label>
-      <div class="qty-row">
-        <button class="qbtn m" onclick="dq('k',-1)">−</button>
-        <input type="number" id="qK" class="qty-in" value="0" min="0">
-        <button class="qbtn p" onclick="dq('k',1)">+</button>
-      </div>
-    </div>
-    <div class="qty-block">
-      <label id="qFLabel">Menge 2</label>
-      <div class="qty-row">
-        <button class="qbtn m" onclick="dq('f',-1)">−</button>
-        <input type="number" id="qF" class="qty-in" value="0" min="0">
-        <button class="qbtn p" onclick="dq('f',1)">+</button>
-      </div>
-    </div>
-  </div>
-  <!-- MHD Feld – nur bei Eingang relevant -->
-  <div id="mhdRow" style="display:none;margin-bottom:8px;padding:10px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r)">
-    <div style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">📅 MHD dieser Lieferung (optional)</div>
-    <input type="month" id="mhdIn" class="fi2" style="font-size:15px;padding:8px 10px">
-    <div id="mhdHint" style="margin-top:6px;font-size:13px;display:none"></div>
-  </div>
-  <div class="act-row">
-    <button class="btn btn-green" id="eingangsBtn" onclick="handleEingang()">➕ Eingang</button>
-    <button class="btn btn-red"   onclick="hideMhdRow(); applyChange(-1)">➖ Ausgang</button>
   </div>
 </div>
 
@@ -909,6 +865,56 @@ select.fi2{appearance:none}
   </div>
 </div>
 
+
+<!-- SCAN POPUP -->
+<div class="overlay" id="scanPopup" onclick="if(event.target===this)closeScanPopup()">
+  <div class="modal" style="max-width:340px">
+    <!-- Artikel Info -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+      <div id="spIcon" style="font-size:32px">📦</div>
+      <div style="flex:1">
+        <div id="spName" style="font-size:16px;font-weight:700;color:var(--text)"></div>
+        <div id="spInfo" style="font-size:12px;color:var(--muted);margin-top:2px"></div>
+      </div>
+      <button onclick="openBarcodeModal(currentId)" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--muted);padding:4px">🔢</button>
+    </div>
+
+    <!-- Mengen -->
+    <div class="qty-grid" style="margin-bottom:12px">
+      <div class="qty-block">
+        <label id="spKLabel">Kästen</label>
+        <div class="qty-row">
+          <button class="qbtn m" onclick="dq('k',-1)">−</button>
+          <input type="number" id="qK" class="qty-in" value="0" min="0">
+          <button class="qbtn p" onclick="dq('k',1)">+</button>
+        </div>
+      </div>
+      <div class="qty-block">
+        <label id="spFLabel">Flaschen</label>
+        <div class="qty-row">
+          <button class="qbtn m" onclick="dq('f',-1)">−</button>
+          <input type="number" id="qF" class="qty-in" value="0" min="0">
+          <button class="qbtn p" onclick="dq('f',1)">+</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MHD Feld -->
+    <div id="mhdRow" style="display:none;margin-bottom:12px;padding:10px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r)">
+      <div style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">📅 MHD dieser Lieferung (optional)</div>
+      <input type="month" id="mhdIn" class="fi2" style="font-size:15px;padding:8px 10px">
+      <div id="mhdHint" style="margin-top:6px;font-size:13px;display:none"></div>
+    </div>
+
+    <!-- Buttons -->
+    <div class="act-row">
+      <button class="btn btn-green" id="eingangsBtn" onclick="handleEingang()" style="flex:1">➕ Eingang</button>
+      <button class="btn btn-red" onclick="hideMhdRow();applyChange(-1)" style="flex:1">➖ Ausgang</button>
+    </div>
+    <button class="btn btn-surface" style="width:100%;margin-top:8px" onclick="closeScanPopup()">Schließen</button>
+  </div>
+</div>
+
 <!-- CAMERA MODAL -->
 <div class="overlay" id="camModal">
   <div class="modal" style="padding:0;border-radius:20px 20px 0 0;overflow:hidden;background:#000">
@@ -962,7 +968,7 @@ select.fi2{appearance:none}
         <strong style="color:var(--text)">Claude</strong> · KI-Assistent von Anthropic
       </p>
       <p style="font-size:11px;color:var(--muted);margin-top:10px;letter-spacing:1px">
-        Version 0.97
+        Version 0.99
       </p>
     </div>
     <button class="btn btn-surface" style="width:100%;margin-top:16px" onclick="document.getElementById('impressumModal').classList.remove('open')">Schließen</button>
@@ -1138,7 +1144,7 @@ function render() {
   // refresh found card
   if (currentId && products[currentId]) {
     const p = products[currentId];
-    document.getElementById('fKst').textContent = p.kaesten;
+    if(document.getElementById('fKst')) document.getElementById('fKst').textContent = p.kaesten;
     document.getElementById('fFl').textContent  = p.flaschen;
   }
 }
@@ -1625,6 +1631,7 @@ window.applyChange = async function(dir) {
   document.getElementById('mhdIn').value = '';
   document.getElementById('mhdHint').style.display = 'none';
   document.getElementById('mhdRow').style.display = 'none';
+  closeScanPopup();
   const btn = document.getElementById('eingangsBtn');
   if (btn) { btn.textContent = '➕ Eingang'; btn.onclick = handleEingang; }
 
@@ -1915,21 +1922,34 @@ window.clearFoundCard = function() {
 window.selProd = function(id) {
   currentId = id;
   const p = products[id];
+  if (!p) return;
   const lbl = einheitLabel(p, true);
   const ico = einheitIcon(p);
-  document.getElementById('fName').innerHTML = p.name + (p.liter ? ' <span style="font-size:11px;color:var(--muted);font-weight:400">('+( p.liter%1===0?p.liter+'.0':p.liter)+' Liter)</span>' : '');
-  document.getElementById('fKst').textContent  = p.kaesten;
-  document.getElementById('fFl').textContent   = p.flaschen;
-  // Einheit-Label in foundCard und Buchungsbereich anpassen
-  document.getElementById('fKstLabel').innerHTML = lbl + ': <strong id="fKst">' + p.kaesten + '</strong>';
-  document.getElementById('qKLabel').textContent = ico + ' ' + lbl;
-  document.getElementById('qFLabel').textContent = '🍾 Flaschen';
-  // Flaschen-Zeile ausblenden bei Fass (macht keinen Sinn)
-  const flRow = document.querySelector('.qty-grid .qty-block:last-child');
-  if (flRow) flRow.style.display = p.einheit === 'fass' ? 'none' : '';
-  document.getElementById('foundCard').classList.add('show');
-  window.scrollTo({top:0,behavior:'smooth'});
-  toast(ico + ' ' + p.name + ' ausgewählt','i');
+  const isFass = p.einheit === 'fass';
+
+  // Popup befüllen
+  document.getElementById('spName').textContent = p.name + (p.liter ? ' ('+p.liter+' L)' : '');
+  document.getElementById('spInfo').textContent = lbl + ': ' + p.kaesten + (!isFass ? ' · Fl. lose: ' + p.flaschen : '');
+  document.getElementById('spIcon').textContent = ico;
+  document.getElementById('spKLabel').textContent = ico + ' ' + lbl;
+  document.getElementById('spFLabel').textContent = isFass ? '(n/a)' : '🍾 Flaschen loose';
+
+  // Flaschen-Reihe bei Fass ausblenden
+  const flBlock = document.querySelector('#scanPopup .qty-grid .qty-block:last-child');
+  if (flBlock) flBlock.style.display = isFass ? 'none' : '';
+
+  // Mengen auf 0 zurücksetzen
+  document.getElementById('qK').value = 0;
+  document.getElementById('qF').value = 0;
+  document.getElementById('mhdRow').style.display = 'none';
+
+  // Eingang Button zurücksetzen
+  const eb = document.getElementById('eingangsBtn');
+  if (eb) { eb.textContent = '➕ Eingang'; eb.onclick = handleEingang; }
+
+  // Popup öffnen
+  document.getElementById('scanPopup').classList.add('open');
+  setTimeout(() => document.getElementById('qK').focus(), 200);
 };
 
 // ── PRODUCT CRUD ──────────────────────────────────────────────────────────────
