@@ -652,6 +652,7 @@ select.fi2{appearance:none}
   <div class="view active" id="vLager">
     <div class="toolbar">
       <input type="text" class="search-bar" id="searchIn" placeholder="🔍 Produkt suchen…">
+      <button class="btn btn-accent btn-sm" onclick="openAdd()">＋ Artikel</button>
       <button class="btn btn-surface btn-sm" onclick="exportExcel()">📊 Excel</button>
       <button class="btn btn-surface btn-sm" id="selModeBtn" onclick="toggleSelMode()">☑️ Auswahl</button>
     </div>
@@ -954,7 +955,7 @@ select.fi2{appearance:none}
         <strong style="color:var(--text)">Claude</strong> · KI-Assistent von Anthropic
       </p>
       <p style="font-size:11px;color:var(--muted);margin-top:10px;letter-spacing:1px">
-        Version 0.95
+        Version 0.96
       </p>
     </div>
     <button class="btn btn-surface" style="width:100%;margin-top:16px" onclick="document.getElementById('impressumModal').classList.remove('open')">Schließen</button>
