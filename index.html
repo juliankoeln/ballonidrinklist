@@ -880,7 +880,7 @@ select.fi2{appearance:none}
     </div>
 
     <!-- Mengen -->
-    <div class="qty-grid" style="margin-bottom:12px">
+    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:12px">
       <div class="qty-block">
         <label id="spKLabel">Kästen</label>
         <div class="qty-row">
@@ -889,8 +889,8 @@ select.fi2{appearance:none}
           <button class="qbtn p" onclick="dq('k',1)">+</button>
         </div>
       </div>
-      <div class="qty-block">
-        <label id="spFLabel">Flaschen</label>
+      <div class="qty-block" id="spFlRow">
+        <label id="spFLabel">Flaschen (lose)</label>
         <div class="qty-row">
           <button class="qbtn m" onclick="dq('f',-1)">−</button>
           <input type="number" id="qF" class="qty-in" value="0" min="0">
@@ -968,7 +968,7 @@ select.fi2{appearance:none}
         <strong style="color:var(--text)">Claude</strong> · KI-Assistent von Anthropic
       </p>
       <p style="font-size:11px;color:var(--muted);margin-top:10px;letter-spacing:1px">
-        Version 0.99
+        Version 1.00
       </p>
     </div>
     <button class="btn btn-surface" style="width:100%;margin-top:16px" onclick="document.getElementById('impressumModal').classList.remove('open')">Schließen</button>
@@ -1919,6 +1919,12 @@ window.clearFoundCard = function() {
   document.getElementById('qFLabel').textContent = 'Menge 2';
 };
 
+window.closeScanPopup = function() {
+  document.getElementById('scanPopup').classList.remove('open');
+  document.getElementById('bIn').value = '';
+  setTimeout(() => document.getElementById('bIn').focus(), 100);
+};
+
 window.selProd = function(id) {
   currentId = id;
   const p = products[id];
@@ -1935,7 +1941,7 @@ window.selProd = function(id) {
   document.getElementById('spFLabel').textContent = isFass ? '(n/a)' : '🍾 Flaschen loose';
 
   // Flaschen-Reihe bei Fass ausblenden
-  const flBlock = document.querySelector('#scanPopup .qty-grid .qty-block:last-child');
+  const flBlock = document.getElementById('spFlRow');
   if (flBlock) flBlock.style.display = isFass ? 'none' : '';
 
   // Mengen auf 0 zurücksetzen
