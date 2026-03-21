@@ -699,7 +699,8 @@ select.fi2{appearance:none}
   <div class="view" id="vBestellung">
     <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center">
       <div style="flex:1;font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:1px;color:#888">Bestellung <span class="badge" id="bestCt">0</span></div>
-      <button class="btn btn-accent btn-sm" onclick="addBestPos()">＋ Position</button>
+      <button class="btn btn-accent btn-sm" onclick="addBestPos(false)">＋ Artikel</button>
+      <button class="btn btn-surface btn-sm" onclick="addBestPos(true)">✏️ Freitext</button>
       <button class="btn btn-green btn-sm" onclick="exportBestellung()">📄 Excel</button>
     </div>
     <div id="bestList"></div>
@@ -736,7 +737,7 @@ select.fi2{appearance:none}
 </main>
 
 <!-- FAB -->
-<button class="fab" onclick="openAdd()">＋</button>
+<button class="fab" id="fabBtn" onclick="handleFab()">＋</button>
 
 <!-- BOTTOM NAV -->
 <div class="bnav">
@@ -752,16 +753,16 @@ select.fi2{appearance:none}
 <!-- BESTELLUNG POSITION MODAL -->
 <div class="overlay" id="bestModal">
   <div class="modal">
-    <h2>Position hinzufügen</h2>
-    <div class="fg">
-      <label>Produkt</label>
+    <h2 id="bestModalTitle">Position hinzufügen</h2>
+    <div class="fg" id="bestProdRow">
+      <label>Artikel aus Lager</label>
       <select class="fi2" id="bestProd">
         <option value="">-- Produkt wählen --</option>
       </select>
     </div>
-    <div class="fg">
-      <label>Oder: Freitext</label>
-      <input type="text" class="fi2" id="bestFreitext" placeholder="z.B. Vodka 0,7L">
+    <div class="fg" id="bestFreitextRow">
+      <label>Bezeichnung</label>
+      <input type="text" class="fi2" id="bestFreitext" placeholder="z.B. Vodka Absolut 0,7L">
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
       <div class="fg"><label>Kästen</label><input type="number" class="fi2" id="bestK" value="0" min="0"></div>
@@ -953,7 +954,7 @@ select.fi2{appearance:none}
         <strong style="color:var(--text)">Claude</strong> · KI-Assistent von Anthropic
       </p>
       <p style="font-size:11px;color:var(--muted);margin-top:10px;letter-spacing:1px">
-        Version 0.94
+        Version 0.95
       </p>
     </div>
     <button class="btn btn-surface" style="width:100%;margin-top:16px" onclick="document.getElementById('impressumModal').classList.remove('open')">Schließen</button>
@@ -2181,9 +2182,8 @@ window.switchView = function(v) {
   document.querySelectorAll('.nbtn').forEach(e=>e.classList.remove('active'));
   document.getElementById('v'+v).classList.add('active');
   document.getElementById('n'+v).classList.add('active');
-  document.querySelector('.fab').style.display = (v==='History'||v==='Bestellung'||v==='Inventur'||v==='Dashboard')?'none':'flex';
+  document.querySelector('.fab').style.display = (v==='History'||v==='Inventur'||v==='Dashboard')?'none':'flex';
   document.getElementById('scanStrip').style.display = v==='Lager'?'block':'none';
-  document.querySelector('.fab').style.display = (v==='History'||v==='Bestellung'||v==='Inventur')?'none':'flex';
   if (v==='Artikel') { renderArtikel(); }
   if (v==='Inventur') { renderInventur(); }
   if (v==='Bestellung') renderBestellung();
@@ -2321,7 +2321,16 @@ window.renderBestellung = function() {
     </div>`).join('');
 };
 
-window.addBestPos = function() {
+window.addBestPos = function(freitextMode) {
+  const isFreitext = freitextMode === true;
+  document.getElementById('bestModalTitle').textContent = isFreitext ? '✏️ Sonderbestellung' : '＋ Position hinzufügen';
+  document.getElementById('bestProdRow').style.display = isFreitext ? 'none' : '';
+  document.getElementById('bestFreitextRow').style.display = '';
+  document.getElementById('bestFreitext').placeholder = isFreitext ? 'z.B. Absolut Vodka 0,7L – Sonderbestellung' : 'z.B. Vodka 0,7L (optional)';
+  document.getElementById('bestFreitext').value = '';
+  document.getElementById('bestK').value = isFreitext ? '1' : '0';
+  document.getElementById('bestF').value = '0';
+  document.getElementById('bestNote').value = isFreitext ? 'Sonderbestellung' : '';
   // Fill product dropdown
   const sel = document.getElementById('bestProd');
   sel.innerHTML = '<option value="">-- Produkt wählen --</option>' +
