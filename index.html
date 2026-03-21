@@ -968,7 +968,7 @@ select.fi2{appearance:none}
         <strong style="color:var(--text)">Claude</strong> · KI-Assistent von Anthropic
       </p>
       <p style="font-size:11px;color:var(--muted);margin-top:10px;letter-spacing:1px">
-        Version 1.00
+        Version 0.101
       </p>
     </div>
     <button class="btn btn-surface" style="width:100%;margin-top:16px" onclick="document.getElementById('impressumModal').classList.remove('open')">Schließen</button>
@@ -1431,7 +1431,7 @@ window.confirmDelete = async function() {
   }
   if (currentId === deleteId) {
     currentId = null;
-    document.getElementById('foundCard').classList.remove('show');
+    document.getElementById('foundCard')?.classList.remove('show');
   }
   await fbPush('history', { pn: name, dir:'del', nK:0, nF:0, dK:0, dF:0, ts:new Date().toISOString(), user:currentUser?.kuerzel||'?' });
   closeDelModal();
@@ -1546,7 +1546,6 @@ window.doScan = function() {
     selProd(entry[0]);
   } else {
     currentId = null;
-    document.getElementById('foundCard').classList.remove('show');
     openAdd(null, code);
     toast('Barcode unbekannt – neues Produkt anlegen', 'e');
   }
@@ -1911,7 +1910,7 @@ window.shareOrSave = async function(wb, filename, successMsg) {
 
 window.clearFoundCard = function() {
   currentId = null;
-  document.getElementById('foundCard').classList.remove('show');
+  document.getElementById('foundCard')?.classList.remove('show');
   document.getElementById('searchIn').value = '';
   renderList();
   bIn.value = '';
@@ -2208,7 +2207,7 @@ window.switchView = function(v) {
   const prev = document.querySelector('.view.active')?.id;
   if (prev === 'vLager' && v !== 'Lager') {
     currentId = null;
-    document.getElementById('foundCard').classList.remove('show');
+    document.getElementById('foundCard')?.classList.remove('show');
     document.getElementById('searchIn').value = '';
     renderList();
   }
