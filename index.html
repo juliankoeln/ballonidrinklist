@@ -810,7 +810,14 @@ select.fi2{appearance:none}
       <div id="markenDropdown" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:999;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);box-shadow:0 4px 16px rgba(0,0,0,.15);max-height:180px;overflow-y:auto"
         ontouchstart="event.stopPropagation()"></div>
     </div>
-    <div class="fg"><label>Barcode (EAN)</label><input type="text" id="fBc" class="fi2" placeholder="z.B. 4000177000036" inputmode="numeric"></div>
+    <div class="fg">
+      <label>Barcode / EAN</label>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="text" id="fBc" class="fi2" style="flex:1" placeholder="z.B. 4000177000036" inputmode="numeric" autocomplete="off">
+        <button type="button" id="genEanBtn" class="btn btn-surface" onclick="generateAndShowBarcode()" style="flex-shrink:0;padding:10px 14px" title="Internen Barcode generieren">🔢 Generieren</button>
+      </div>
+      <div id="genEanHint" style="display:none;font-size:12px;color:#f97316;margin-top:4px">⬆️ Barcode generiert – Artikel speichern nicht vergessen!</div>
+    </div>
     <div class="fg"><label>Kategorie</label>
       <select id="fKat" class="fi2">
         <option value="Bier">🍺 Bier</option><option value="Softdrink">🥤 Softdrink</option>
@@ -955,7 +962,7 @@ select.fi2{appearance:none}
         <strong style="color:var(--text)">Claude</strong> · KI-Assistent von Anthropic
       </p>
       <p style="font-size:11px;color:var(--muted);margin-top:10px;letter-spacing:1px">
-        Version 0.96
+        Version 0.97
       </p>
     </div>
     <button class="btn btn-surface" style="width:100%;margin-top:16px" onclick="document.getElementById('impressumModal').classList.remove('open')">Schließen</button>
@@ -2730,11 +2737,17 @@ window.openBarcodeModal = function(productId) {
 window.closeBarcodeModal = function() { document.getElementById('barcodeModal').classList.remove('open'); };
 window.generateAndShowBarcode = function() {
   const id = document.getElementById('eId').value;
-  if (id && products[id]) { openBarcodeModal(id); }
-  else {
-    const ean = generateInternalEAN(Date.now().toString());
-    document.getElementById('fBc').value = ean;
-    toast('🔢 Barcode generiert – speichern nicht vergessen', 'i');
+  const bcField = document.getElementById('fBc');
+  if (id && products[id] && bcField.value) {
+    // Bestehender Artikel mit Barcode – Modal anzeigen
+    openBarcodeModal(id);
+  } else {
+    // Neuer Artikel oder ohne Barcode – generieren
+    const ean = generateInternalEAN(Date.now().toString() + Math.random().toString());
+    bcField.value = ean;
+    const hint = document.getElementById('genEanHint');
+    if (hint) { hint.style.display = 'block'; setTimeout(() => hint.style.display = 'none', 4000); }
+    toast('🔢 Interner Barcode generiert!', 's');
   }
 };
 async function barcodeToCanvas() {
